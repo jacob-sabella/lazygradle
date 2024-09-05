@@ -1,7 +1,9 @@
 from typing import List, Optional
-from dto.task import *
-from dto.gradle_error import *
- 
+
+from gradle.dto.gradle_error import GradleError
+from gradle.dto.task import Task
+
+
 class TaskList:
     """
     Represents the list of Gradle tasks in the project.

@@ -1,0 +1,33 @@
+/* General styling for the application */
+.main-layout {
+    width: 100%;
+    height: 100%;
+}
+
+.no-project {
+    text-align: center;
+    color: gray;
+    background: #f0f0f0;  /* Use 'background' instead of 'background-color' */
+}
+
+.task-list {
+    width: 50%;
+    border-right: solid #ccc;  /* Correct border-right syntax */}
+
+.task-description {
+    width: 50%;
+    text-align: left;
+    background: #fafafa;       /* Correct background syntax */
+    border-left: solid #ccc;   /* Correct border-left syntax */
+    color: #333;
+}
+
+/* Styling the header and footer */
+Header, Footer {
+    background: #333;   /* Use 'background' instead of 'background-color' */
+    color: white;
+}
+
+.option-list {
+    background: #f9f9f9;  /* Use 'background' instead of 'background-color' */
+}
