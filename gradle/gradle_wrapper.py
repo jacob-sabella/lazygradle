@@ -1,3 +1,4 @@
+import os
 import subprocess
 import logging
 from typing import Optional, Tuple, List
@@ -24,7 +25,7 @@ class GradleWrapper:
     def list_all_tasks(self) -> TaskList:
         """
         Lists all Gradle tasks in the project's working directory and returns a TaskList object.
-        
+
         Returns:
         TaskList: A TaskList object containing a list of Task objects or an error.
         """
@@ -78,25 +79,33 @@ class GradleWrapper:
     def run_gradle_command(self, command: List[str]) -> Tuple[Optional[str], Optional[GradleError]]:
         """
         Runs a Gradle command in the project's working directory using the subprocess module.
-
-        Parameters:
-        command (list): A list containing the Gradle command and its arguments.
-
-        Returns:
-        Tuple[str, GradleError]: The output of the Gradle command as a string and an error object if one occurs.
         """
         try:
             self.logger.debug(f"Running command: {' '.join(command)} in {self.working_directory}")
-            result = subprocess.run(command, check=True, cwd=self.working_directory, stdout=subprocess.PIPE,
-                                    stderr=subprocess.PIPE)
-            output = result.stdout.decode()
+            env = os.environ.copy()
+
+            result = subprocess.run(
+                command,
+                check=True,
+                cwd=self.working_directory,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                env=env,
+                shell=True  # Use shell=True for Windows if needed
+            )
+
+            output = result.stdout.decode().strip()
             self.logger.debug(f"Command output: {output}")
             return output, None
+        except FileNotFoundError:
+            self.logger.error("Gradle executable not found. Ensure it is installed and in PATH.")
+            return None, GradleError("Gradle not found in PATH", -1)
         except subprocess.CalledProcessError as e:
             self.logger.error(f"Command failed with error: {e.stderr.decode()}")
             return None, GradleError(e.stderr.decode(), e.returncode)
 
-    def run_custom_gradle_task(self, task: str, options: Optional[List[str]] = None) -> Tuple[Optional[str], Optional[GradleError]]:
+    def run_custom_gradle_task(self, task: str, options: Optional[List[str]] = None) -> Tuple[
+        Optional[str], Optional[GradleError]]:
         """
         Runs a custom Gradle task in the project's working directory with optional arguments.
 

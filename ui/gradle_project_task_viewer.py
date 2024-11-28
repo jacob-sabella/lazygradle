@@ -12,8 +12,8 @@ from gradle.gradle_manager import GradleManager
 
 class GradleProjectTaskViewer(Static):
     BINDINGS = [
-        Binding("p", "run_task", "Run Task"),
-        Binding("P", "run_task_with_parameters", "Run Task with Parameters")
+        Binding("r", "run_task", "Run Task"),
+        Binding("R", "run_task_with_parameters", "Run Task with Parameters")
     ]
 
     def __init__(self, gradle_manager: GradleManager, **kwargs):
