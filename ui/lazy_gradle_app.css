@@ -10,19 +10,6 @@
   background: #f0f0f0;
 }
 
-.task-list {
-  width: 50%;
-  border-right: solid #ccc;
-}
-
-.task-description {
-  width: 50%;
-  text-align: left;
-  background: #fafafa;
-  border-left: solid #ccc;
-  color: #333;
-}
-
 /* Styling the header and footer */
 Header,
 Footer {
@@ -30,8 +17,131 @@ Footer {
   color: white;
 }
 
-.option-list {
-  background: #f9f9f9;
+/* Project header */
+.project-header {
+  width: 100%;
+  height: 3;
+  background: $boost;
+  padding: 0 2;
+  border-bottom: thick $primary;
+  align-vertical: middle;
+}
+
+.project-label {
+  width: auto;
+  height: 1;
+  padding: 0 1 0 0;
+  color: $text;
+}
+
+.project-name {
+  width: auto;
+  height: 1;
+  padding: 0 2 0 0;
+}
+
+.project-path {
+  width: 1fr;
+  height: 1;
+  padding: 0;
+}
+
+.project-warning {
+  width: 100%;
+  height: 3;
+  background: $warning;
+  padding: 1 2;
+  text-align: center;
+  border-bottom: thick $error;
+}
+
+/* Main content area */
+.main-content {
+  width: 100vw;
+  height: 100vh;
+}
+
+/* Task list panel (left side) */
+.task-list-panel {
+  width: 40%;
+  height: 100%;
+  border-right: thick $primary;
+  background: $surface;
+  padding: 0;
+}
+
+OptionList {
+  width: 100%;
+  height: 1fr;
+  background: $surface;
+  border: solid $primary;
+}
+
+.task-option-list {
+  width: 100%;
+  height: 1fr;
+}
+
+/* Task details panel (right side) */
+.task-details-panel {
+  width: 60%;
+  height: 100%;
+  background: $surface;
+  padding: 0;
+}
+
+/* Section titles */
+.section-title {
+  width: 100%;
+  height: auto;
+  content-align: center middle;
+  background: $boost;
+  color: $text;
+  text-style: bold;
+  border-bottom: solid $primary;
+  padding: 1;
+}
+
+/* Task name label */
+.task-name-label {
+  width: 100%;
+  height: auto;
+  padding: 1 2;
+  background: $panel;
+  text-style: bold;
+  border-bottom: solid $primary-lighten-1;
+}
+
+/* Task details scroll area */
+.task-details-scroll {
+  width: 100%;
+  height: 1fr;
+  background: $surface;
+  padding: 0;
+}
+
+/* Task description text */
+.task-description-text {
+  width: 100%;
+  height: auto;
+  padding: 2;
+  background: $surface;
+  color: $text;
+}
+
+/* Task actions (buttons area) */
+.task-actions {
+  width: 100%;
+  height: auto;
+  padding: 1 2;
+  background: $panel;
+  border-top: solid $primary;
+  align-horizontal: center;
+}
+
+.action-button {
+  min-width: 20;
+  margin: 0 1;
 }
 
 /* Tab styling */

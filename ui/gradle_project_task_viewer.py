@@ -3,7 +3,7 @@ import asyncio
 
 from textual.app import ComposeResult
 from textual.binding import Binding
-from textual.containers import Horizontal, Vertical
+from textual.containers import Horizontal, Vertical, Container, VerticalScroll
 from textual.widgets import Static, Label, OptionList, Button
 from textual.widgets._option_list import Option
 
@@ -23,8 +23,9 @@ class GradleProjectTaskViewer(Static):
         self.parent_widget = parent_widget  # Reference to LazyGradleWidget
         self.tasks = []
         self.selected_task = None
-        self.description_widget = Static("Select a task to view its description.", expand=True,
-                                         classes="task-description")
+        self.task_name_label = Static("", classes="task-name-label")
+        self.description_widget = Static("Select a task from the list to view its description.",
+                                         classes="task-description-text")
 
     def compose(self) -> ComposeResult:
         selected_project = self.gradle_manager.get_selected_project()
@@ -40,31 +41,44 @@ class GradleProjectTaskViewer(Static):
                 logging.error(f"No tasks found for project: {selected_project}")
 
             yield Horizontal(
-                self.render_task_list(),
+                # Left panel: Task list
                 Vertical(
-                    self.description_widget,  # Use the description widget directly
-                    self.render_buttons(),  # Add buttons below the description
-                    classes="task-info"
+                    Static("Available Tasks", classes="section-title"),
+                    self.render_task_list(),
+                    classes="task-list-panel"
                 ),
-                classes="main-layout"
+                # Right panel: Task details and actions
+                Vertical(
+                    Static("Task Details", classes="section-title"),
+                    VerticalScroll(
+                        self.task_name_label,
+                        self.description_widget,
+                        classes="task-details-scroll"
+                    ),
+                    self.render_buttons(),
+                    classes="task-details-panel"
+                ),
+                classes="main-content"
             )
         else:
             yield Label("No project selected.", classes="no-project")
 
     def render_task_list(self):
         """Render the task list on the left."""
-        option_list = OptionList()
+        option_list = OptionList(classes="task-option-list")
+        logging.info(f"Rendering {len(self.tasks)} tasks to option list")
         for task in self.tasks:
             option_list.add_option(Option(task.name))
+            logging.debug(f"Added task: {task.name}")
         return option_list
 
     @staticmethod
     def render_buttons():
         """Render the Run Task and Run Task with Parameters buttons."""
-        return Vertical(
-            Button("Run Task", id="run_task_button", variant="primary"),
-            Button("Run Task with Parameters", id="run_task_with_params_button", variant="warning"),
-            classes="task-buttons"
+        return Horizontal(
+            Button("▶ Run Task (r)", id="run_task_button", variant="success", classes="action-button"),
+            Button("⚙ Run with Params (R)", id="run_task_with_params_button", variant="primary", classes="action-button"),
+            classes="task-actions"
         )
 
     async def on_button_pressed(self, event: Button.Pressed):
@@ -93,7 +107,11 @@ class GradleProjectTaskViewer(Static):
     def update_task_description(self, task):
         """Update the task description in the description widget."""
         logging.info(task.description)
-        self.description_widget.update(task.description)
+        self.task_name_label.update(f"[bold cyan]{task.name}[/bold cyan]")
+
+        # Format the description with better styling
+        description_text = task.description if task.description else "[dim]No description available[/dim]"
+        self.description_widget.update(description_text)
         self.refresh()
 
     async def run_task(self):

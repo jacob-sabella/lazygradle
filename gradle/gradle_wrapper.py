@@ -131,9 +131,11 @@ class GradleWrapper:
                 command,
                 check=True,
                 cwd=self.working_directory,
+                stdin=subprocess.DEVNULL,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 env=env,
+                close_fds=True
             )
 
             output = result.stdout.decode().strip()
@@ -169,11 +171,13 @@ class GradleWrapper:
             process = subprocess.Popen(
                 command,
                 cwd=self.working_directory,
+                stdin=subprocess.DEVNULL,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 env=env,
                 universal_newlines=True,
-                bufsize=1
+                bufsize=1,
+                close_fds=True
             )
 
             stdout_lines = []
