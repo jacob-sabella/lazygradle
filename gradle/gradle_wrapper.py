@@ -1,7 +1,8 @@
 import os
 import subprocess
 import logging
-from typing import Optional, Tuple, List
+import threading
+from typing import Optional, Tuple, List, Callable
 
 from gradle.dto.gradle_error import GradleError
 from gradle.dto.task import Task
@@ -101,10 +102,19 @@ class GradleWrapper:
         return TaskMetadata(task_name=task_name, metadata=output)
 
     def run_gradle_command(
-        self, command: List[str]
+        self, command: List[str], on_stdout: Optional[Callable[[str], None]] = None,
+        on_stderr: Optional[Callable[[str], None]] = None
     ) -> Tuple[Optional[str], Optional[GradleError]]:
         """
         Runs a Gradle command in the project's working directory using the subprocess module.
+
+        Parameters:
+        command (List[str]): The command to run as a list of strings.
+        on_stdout (Optional[Callable[[str], None]]): Optional callback for stdout lines.
+        on_stderr (Optional[Callable[[str], None]]): Optional callback for stderr lines.
+
+        Returns:
+        Tuple[Optional[str], Optional[GradleError]]: The output and any error that occurred.
         """
         try:
             self.logger.debug(
@@ -112,6 +122,11 @@ class GradleWrapper:
             )
             env = os.environ.copy()
 
+            # If callbacks are provided, use streaming mode with Popen
+            if on_stdout or on_stderr:
+                return self._run_with_streaming(command, env, on_stdout, on_stderr)
+
+            # Otherwise, use the simple subprocess.run approach
             result = subprocess.run(
                 command,
                 check=True,
@@ -133,8 +148,86 @@ class GradleWrapper:
             self.logger.error(f"Command failed with error: {e.stderr.decode()}")
             return None, GradleError(e.stderr.decode(), e.returncode)
 
+    def _run_with_streaming(
+        self, command: List[str], env: dict,
+        on_stdout: Optional[Callable[[str], None]],
+        on_stderr: Optional[Callable[[str], None]]
+    ) -> Tuple[Optional[str], Optional[GradleError]]:
+        """
+        Runs a command with streaming output via callbacks using threading.
+
+        Parameters:
+        command (List[str]): The command to run.
+        env (dict): Environment variables.
+        on_stdout (Optional[Callable[[str], None]]): Callback for stdout lines.
+        on_stderr (Optional[Callable[[str], None]]): Callback for stderr lines.
+
+        Returns:
+        Tuple[Optional[str], Optional[GradleError]]: The output and any error.
+        """
+        try:
+            process = subprocess.Popen(
+                command,
+                cwd=self.working_directory,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                env=env,
+                universal_newlines=True,
+                bufsize=1
+            )
+
+            stdout_lines = []
+            stderr_lines = []
+
+            def read_stdout():
+                for line in process.stdout:
+                    line = line.rstrip()
+                    stdout_lines.append(line)
+                    if on_stdout:
+                        on_stdout(line)
+
+            def read_stderr():
+                for line in process.stderr:
+                    line = line.rstrip()
+                    stderr_lines.append(line)
+                    if on_stderr:
+                        on_stderr(line)
+
+            # Start threads to read stdout and stderr
+            stdout_thread = threading.Thread(target=read_stdout)
+            stderr_thread = threading.Thread(target=read_stderr)
+            stdout_thread.start()
+            stderr_thread.start()
+
+            # Wait for the process to complete
+            return_code = process.wait()
+
+            # Wait for threads to finish reading
+            stdout_thread.join()
+            stderr_thread.join()
+
+            if return_code != 0:
+                error_message = "\n".join(stderr_lines) if stderr_lines else "Command failed"
+                self.logger.error(f"Command failed with return code {return_code}: {error_message}")
+                return None, GradleError(error_message, return_code)
+
+            output = "\n".join(stdout_lines)
+            self.logger.debug(f"Command completed successfully")
+            return output, None
+
+        except FileNotFoundError:
+            self.logger.error(
+                "Gradle executable not found. Ensure it is installed and in PATH."
+            )
+            return None, GradleError("Gradle not found in PATH", -1)
+        except Exception as e:
+            self.logger.error(f"Command failed with error: {str(e)}")
+            return None, GradleError(str(e), -1)
+
     def run_custom_gradle_task(
-        self, task: str, options: Optional[List[str]] = None
+        self, task: str, options: Optional[List[str]] = None,
+        on_stdout: Optional[Callable[[str], None]] = None,
+        on_stderr: Optional[Callable[[str], None]] = None
     ) -> Tuple[Optional[str], Optional[GradleError]]:
         """
         Runs a custom Gradle task in the project's working directory with optional arguments.
@@ -142,6 +235,8 @@ class GradleWrapper:
         Parameters:
         task (str): The name of the task to run.
         options (list): Optional list of additional arguments for the task.
+        on_stdout (Optional[Callable[[str], None]]): Optional callback for stdout lines.
+        on_stderr (Optional[Callable[[str], None]]): Optional callback for stderr lines.
 
         Returns:
         Tuple[str, GradleError]: The output of the Gradle task as a string and an error object if one occurs.
@@ -153,7 +248,7 @@ class GradleWrapper:
         self.logger.debug(
             f"Running custom Gradle task: {task} with options: {options} in directory: {self.working_directory}"
         )
-        output, error = self.run_gradle_command(command)
+        output, error = self.run_gradle_command(command, on_stdout=on_stdout, on_stderr=on_stderr)
 
         if error:
             self.logger.error(

@@ -4,7 +4,7 @@ from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Vertical, Horizontal
 from textual.screen import ModalScreen
-from textual.widgets import Static, Button
+from textual.widgets import Static, Button, Input
 
 from gradle.gradle_manager import GradleManager
 
@@ -32,7 +32,7 @@ class RunTaskWithParametersModal(ModalScreen):
 
     def render_input_field(self):
         """Render an input field for parameters."""
-        self.param_input = Static("Enter task parameters here", classes="input-field")
+        self.param_input = Input(placeholder="Enter task parameters here", classes="input-field")
         return self.param_input
 
     def render_buttons(self):
@@ -46,12 +46,13 @@ class RunTaskWithParametersModal(ModalScreen):
     async def on_button_pressed(self, event: Button.Pressed):
         """Handle the button presses in the modal."""
         if event.button.id == "run_button":
-            parameters = self.param_input.content  # Get parameters entered by the user
+            parameters = self.param_input.value  # Get parameters entered by the user
             logging.info(f"Running {self.selected_task.name} with parameters: {parameters}")
-            # self.gradle_manager.(self.selected_task.name, parameters)
-            self.dismiss()
+            # Split the parameters string into a list
+            param_list = parameters.split() if parameters else []
+            self.dismiss(param_list)
         elif event.button.id == "cancel_button":
-            self.dismiss()
+            self.dismiss(None)
 
     def dismiss_modal(self):
         """Dismiss the modal and return to the previous screen."""

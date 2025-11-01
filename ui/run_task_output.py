@@ -1,0 +1,85 @@
+import logging
+from textual.widgets import RichLog
+from textual.containers import Container
+from textual.app import ComposeResult
+
+
+class RunTaskOutput(Container):
+    """Widget for displaying streaming Gradle task output."""
+
+    def compose(self) -> ComposeResult:
+        """Compose the widget with a RichLog for output display."""
+        yield RichLog(
+            id="task-output-log",
+            highlight=True,
+            markup=True,
+            wrap=True,
+            auto_scroll=True,
+            classes="output-log",
+        )
+
+    def on_mount(self) -> None:
+        """Called when widget is mounted."""
+        logging.info("RunTaskOutput widget mounted")
+        logging.info(f"Widget ID: {self.id}, Visible: {self.visible}, Display: {self.display}")
+        try:
+            log = self.query_one("#task-output-log", RichLog)
+            logging.info(f"RichLog found - ID: {log.id}, Visible: {log.visible}, Display: {log.display}")
+            log.write("[bold green]Task Output[/bold green]")
+            log.write("=" * 80)
+            log.write("")
+            log.write("[dim]Waiting for task execution...[/dim]")
+            logging.info("Initial message written to output log")
+        except Exception as e:
+            logging.error(f"Error in on_mount: {e}", exc_info=True)
+
+    def clear_output(self):
+        """Clear the output log."""
+        logging.info("Clearing output log")
+        try:
+            log = self.query_one("#task-output-log", RichLog)
+            log.clear()
+            log.write("[bold green]Task Output[/bold green]")
+            log.write("=" * 80)
+        except Exception as e:
+            logging.error(f"Error clearing output: {e}")
+
+    def write_line(self, line: str):
+        """Write a line to the output log."""
+        logging.info(f"Writing to output: {line}")
+        if not self.is_mounted:
+            logging.error("Widget is not mounted!")
+            return
+        try:
+            log = self.query_one("#task-output-log", RichLog)
+            if not log.is_mounted:
+                logging.error("RichLog is not mounted!")
+                return
+            logging.info(f"RichLog state - Visible: {log.visible}, Display: {log.display}, Lines: {len(log.lines)}")
+            log.write(line)
+            logging.info(f"After write - Lines: {len(log.lines)}")
+            log.refresh()
+            self.refresh()
+            logging.info(f"Successfully wrote and refreshed: {line}")
+        except Exception as e:
+            logging.error(f"Error writing line: {e}", exc_info=True)
+
+    def write_error(self, line: str):
+        """Write an error line to the output log in red."""
+        logging.error(f"Writing error to output: {line}")
+        if not self.is_mounted:
+            logging.error("Widget is not mounted!")
+            return
+        try:
+            log = self.query_one("#task-output-log", RichLog)
+            if not log.is_mounted:
+                logging.error("RichLog is not mounted!")
+                return
+            logging.info(f"RichLog state - Visible: {log.visible}, Display: {log.display}, Lines: {len(log.lines)}")
+            log.write(f"[bold red]{line}[/bold red]")
+            logging.info(f"After write - Lines: {len(log.lines)}")
+            log.refresh()
+            self.refresh()
+            logging.info(f"Successfully wrote and refreshed error: {line}")
+        except Exception as e:
+            logging.error(f"Error writing error line: {e}", exc_info=True)

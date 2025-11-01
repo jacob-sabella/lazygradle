@@ -2,7 +2,7 @@ import os
 import json
 import logging
 from pathlib import Path
-from typing import Optional, Dict, List
+from typing import Optional, Dict, List, Callable
 from gradle.gradle_wrapper import GradleWrapper, TaskList, TaskMetadata
 
 
@@ -237,12 +237,15 @@ class GradleManager:
         """
         return self.config.projects
 
-    def run_task(self, task_name: str) -> Optional[str]:
+    def run_task(self, task_name: str, on_stdout: Optional[Callable[[str], None]] = None,
+                 on_stderr: Optional[Callable[[str], None]] = None) -> Optional[str]:
         """
         Run a task from the currently selected project.
 
         Parameters:
         task_name (str): The name of the Gradle task to run.
+        on_stdout (Optional[Callable[[str], None]]): Optional callback for stdout lines.
+        on_stderr (Optional[Callable[[str], None]]): Optional callback for stderr lines.
 
         Returns:
         Optional[str]: The output of the Gradle task, or None if no project is selected.
@@ -253,7 +256,7 @@ class GradleManager:
             return None
 
         gradle_wrapper = GradleWrapper(selected_project)
-        output, error = gradle_wrapper.run_custom_gradle_task(task_name)
+        output, error = gradle_wrapper.run_custom_gradle_task(task_name, on_stdout=on_stdout, on_stderr=on_stderr)
 
         if error:
             self.logger.error(
@@ -263,13 +266,17 @@ class GradleManager:
         self.logger.debug(f"Task '{task_name}' executed successfully.")
         return output
 
-    def run_task_with_parameters(self, task_name: str, parameters: List[str]) -> Optional[str]:
+    def run_task_with_parameters(self, task_name: str, parameters: List[str],
+                                  on_stdout: Optional[Callable[[str], None]] = None,
+                                  on_stderr: Optional[Callable[[str], None]] = None) -> Optional[str]:
         """
         Run a task from the currently selected project with additional parameters.
 
         Parameters:
         task_name (str): The name of the Gradle task to run.
         parameters (List[str]): The list of parameters to pass to the Gradle task.
+        on_stdout (Optional[Callable[[str], None]]): Optional callback for stdout lines.
+        on_stderr (Optional[Callable[[str], None]]): Optional callback for stderr lines.
 
         Returns:
         Optional[str]: The output of the Gradle task, or None if no project is selected.
@@ -280,7 +287,8 @@ class GradleManager:
             return None
 
         gradle_wrapper = GradleWrapper(selected_project)
-        output, error = gradle_wrapper.run_custom_gradle_task(task_name, options=parameters)
+        output, error = gradle_wrapper.run_custom_gradle_task(task_name, options=parameters,
+                                                               on_stdout=on_stdout, on_stderr=on_stderr)
 
         if error:
             self.logger.error(

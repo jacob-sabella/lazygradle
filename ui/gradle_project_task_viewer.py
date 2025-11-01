@@ -1,4 +1,5 @@
 import logging
+import asyncio
 
 from textual.app import ComposeResult
 from textual.binding import Binding
@@ -16,9 +17,10 @@ class GradleProjectTaskViewer(Static):
         Binding("R", "run_task_with_parameters", "Run Task with Parameters")
     ]
 
-    def __init__(self, gradle_manager: GradleManager, **kwargs):
+    def __init__(self, gradle_manager: GradleManager, parent_widget, **kwargs):
         super().__init__(**kwargs)
         self.gradle_manager = gradle_manager
+        self.parent_widget = parent_widget  # Reference to LazyGradleWidget
         self.tasks = []
         self.selected_task = None
         self.description_widget = Static("Select a task to view its description.", expand=True,
@@ -98,10 +100,120 @@ class GradleProjectTaskViewer(Static):
         """Run the selected task without parameters."""
         if self.selected_task:
             logging.info(f"Running task: {self.selected_task.name}")
-            self.gradle_manager.run_task(self.selected_task.name)
+
+            # Switch to the output tab first to ensure widget is mounted
+            self.parent_widget.activate_output_tab()
+
+            # Small delay to ensure widget is fully mounted
+            await asyncio.sleep(0.2)
+
+            # Get the output widget and clear it
+            output_widget = self.parent_widget.output_widget
+            if output_widget is None:
+                logging.error("Output widget is None!")
+                return
+
+            logging.info(f"Got output widget: {output_widget}, mounted: {output_widget.is_mounted}")
+
+            # Wait a bit more if not mounted yet
+            if not output_widget.is_mounted:
+                logging.info("Widget not mounted yet, waiting...")
+                await asyncio.sleep(0.3)
+
+            if not output_widget.is_mounted:
+                logging.error("Output widget still not mounted after waiting!")
+                return
+
+            logging.info("Clearing output widget")
+            output_widget.clear_output()
+
+            # Write a test message directly
+            output_widget.write_line(f"[bold cyan]Starting task: {self.selected_task.name}[/bold cyan]")
+            output_widget.write_line("")
+
+            # Create callbacks that write to the output widget
+            def on_stdout(line: str):
+                logging.info(f"Callback stdout: {line}")
+                self.app.call_from_thread(output_widget.write_line, line)
+
+            def on_stderr(line: str):
+                logging.error(f"Callback stderr: {line}")
+                self.app.call_from_thread(output_widget.write_error, line)
+
+            # Run the task in a thread to avoid blocking the UI
+            logging.info("Starting task execution in thread")
+            await asyncio.to_thread(
+                self.gradle_manager.run_task,
+                self.selected_task.name,
+                on_stdout=on_stdout,
+                on_stderr=on_stderr
+            )
+            logging.info("Task execution completed")
 
     async def run_task_with_parameters(self):
         """Open a modal to enter parameters for the selected task and run it."""
         if self.selected_task:
             logging.info(f"Running task with parameters: {self.selected_task.name}")
-            await self.app.push_screen(RunTaskWithParametersModal(self.selected_task, self.gradle_manager))
+
+            # Pass a callback to handle task execution after modal closes
+            def execute_task(parameters):
+                # This will be called when the modal closes with parameters
+                if parameters:
+                    asyncio.create_task(self._run_task_with_params_impl(parameters))
+
+            await self.app.push_screen(
+                RunTaskWithParametersModal(self.selected_task, self.gradle_manager),
+                callback=execute_task
+            )
+
+    async def _run_task_with_params_impl(self, parameters):
+        """Internal method to run task with parameters and stream to output tab."""
+        # Switch to the output tab first to ensure widget is mounted
+        self.parent_widget.activate_output_tab()
+
+        # Small delay to ensure widget is fully mounted
+        await asyncio.sleep(0.2)
+
+        # Get the output widget and clear it
+        output_widget = self.parent_widget.output_widget
+        if output_widget is None:
+            logging.error("Output widget is None!")
+            return
+
+        logging.info(f"Got output widget: {output_widget}, mounted: {output_widget.is_mounted}")
+
+        # Wait a bit more if not mounted yet
+        if not output_widget.is_mounted:
+            logging.info("Widget not mounted yet, waiting...")
+            await asyncio.sleep(0.3)
+
+        if not output_widget.is_mounted:
+            logging.error("Output widget still not mounted after waiting!")
+            return
+
+        logging.info("Clearing output widget")
+        output_widget.clear_output()
+
+        # Write a test message directly
+        output_widget.write_line(f"[bold cyan]Starting task: {self.selected_task.name}[/bold cyan]")
+        output_widget.write_line("")
+
+        # Create callbacks that write to the output widget
+        def on_stdout(line: str):
+            logging.info(f"Callback stdout: {line}")
+            self.app.call_from_thread(output_widget.write_line, line)
+
+        def on_stderr(line: str):
+            logging.error(f"Callback stderr: {line}")
+            self.app.call_from_thread(output_widget.write_error, line)
+
+        # Run the task in a thread to avoid blocking the UI
+        logging.info("Starting task with parameters execution in thread")
+        await asyncio.to_thread(
+            self.gradle_manager.run_task_with_parameters,
+            self.selected_task.name,
+            parameters,
+            on_stdout=on_stdout,
+            on_stderr=on_stderr
+        )
+        logging.info("Task with parameters execution completed")
