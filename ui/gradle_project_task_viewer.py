@@ -4,7 +4,7 @@ import asyncio
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical, Container, VerticalScroll
-from textual.widgets import Static, Label, OptionList, Button
+from textual.widgets import Static, Label, OptionList, Button, Input
 from textual.widgets._option_list import Option
 
 from ui.run_task_with_parameters_modal import RunTaskWithParametersModal
@@ -14,7 +14,8 @@ from gradle.gradle_manager import GradleManager
 class GradleProjectTaskViewer(Static):
     BINDINGS = [
         Binding("r", "run_task", "Run Task"),
-        Binding("R", "run_task_with_parameters", "Run Task with Parameters")
+        Binding("R", "run_task_with_parameters", "Run Task with Parameters"),
+        Binding("/", "focus_search", "Search Tasks")
     ]
 
     def __init__(self, gradle_manager: GradleManager, parent_widget, **kwargs):
@@ -22,7 +23,10 @@ class GradleProjectTaskViewer(Static):
         self.gradle_manager = gradle_manager
         self.parent_widget = parent_widget  # Reference to LazyGradleWidget
         self.tasks = []
+        self.filtered_tasks = []
         self.selected_task = None
+        self.search_input = Input(placeholder="Search tasks... (press / to focus)", classes="task-search")
+        self.task_option_list = None
         self.task_name_label = Static("", classes="task-name-label")
         self.description_widget = Static("Select a task from the list to view its description.",
                                          classes="task-description-text")
@@ -35,15 +39,17 @@ class GradleProjectTaskViewer(Static):
 
             if project_info and project_info.tasks:
                 self.tasks = project_info.tasks
+                self.filtered_tasks = self.tasks  # Initially show all tasks
                 logging.info(f"Project info: {project_info}")
                 logging.info(f"Tasks: {self.tasks}")
             else:
                 logging.error(f"No tasks found for project: {selected_project}")
 
             yield Horizontal(
-                # Left panel: Task list
+                # Left panel: Task list with search
                 Vertical(
                     Static("Available Tasks", classes="section-title"),
+                    self.search_input,
                     self.render_task_list(),
                     classes="task-list-panel"
                 ),
@@ -65,12 +71,12 @@ class GradleProjectTaskViewer(Static):
 
     def render_task_list(self):
         """Render the task list on the left."""
-        option_list = OptionList(classes="task-option-list")
-        logging.info(f"Rendering {len(self.tasks)} tasks to option list")
-        for task in self.tasks:
-            option_list.add_option(Option(task.name))
+        self.task_option_list = OptionList(id="task-option-list", classes="task-option-list")
+        logging.info(f"Rendering {len(self.filtered_tasks)} tasks to option list")
+        for task in self.filtered_tasks:
+            self.task_option_list.add_option(Option(task.name))
             logging.debug(f"Added task: {task.name}")
-        return option_list
+        return self.task_option_list
 
     @staticmethod
     def render_buttons():
@@ -80,6 +86,43 @@ class GradleProjectTaskViewer(Static):
             Button("⚙ Run with Params (R)", id="run_task_with_params_button", variant="primary", classes="action-button"),
             classes="task-actions"
         )
+
+    def on_input_changed(self, event: Input.Changed) -> None:
+        """Handle search input changes."""
+        if event.input == self.search_input:
+            search_query = event.value.lower().strip()
+            logging.info(f"Search query: {search_query}")
+
+            # Filter tasks based on search query
+            if search_query:
+                self.filtered_tasks = [
+                    task for task in self.tasks
+                    if search_query in task.name.lower() or search_query in task.description.lower()
+                ]
+                logging.info(f"Filtered to {len(self.filtered_tasks)} tasks")
+            else:
+                self.filtered_tasks = self.tasks
+                logging.info(f"Showing all {len(self.filtered_tasks)} tasks")
+
+            # Update the task list
+            self.update_task_list()
+
+    def update_task_list(self):
+        """Update the task option list with filtered tasks."""
+        if self.task_option_list:
+            self.task_option_list.clear_options()
+            for task in self.filtered_tasks:
+                self.task_option_list.add_option(Option(task.name))
+
+            # If no tasks match, show a message
+            if not self.filtered_tasks:
+                self.task_name_label.update("[dim]No tasks match your search[/dim]")
+                self.description_widget.update("")
+                self.selected_task = None
+
+    def action_focus_search(self):
+        """Focus the search input."""
+        self.search_input.focus()
 
     async def on_button_pressed(self, event: Button.Pressed):
         """Handle button press events."""
@@ -91,6 +134,7 @@ class GradleProjectTaskViewer(Static):
     async def on_option_list_option_selected(self, event: OptionList.OptionSelected):
         """Handle task selection and update the description on mouse click or enter key."""
         task_name = event.option.prompt  # Get the selected task name
+        # Search in all tasks, not just filtered ones, to get the full task object
         self.selected_task = next((task for task in self.tasks if task.name == task_name), None)
 
         if self.selected_task:
@@ -99,6 +143,7 @@ class GradleProjectTaskViewer(Static):
     async def on_option_list_option_highlighted(self, event: OptionList.OptionHighlighted):
         """Handle task description update when navigating with keyboard."""
         task_name = event.option.prompt
+        # Search in all tasks, not just filtered ones, to get the full task object
         self.selected_task = next((task for task in self.tasks if task.name == task_name), None)
 
         if self.selected_task:

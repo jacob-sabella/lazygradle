@@ -1,4 +1,5 @@
 from textual.app import ComposeResult
+from textual.binding import Binding
 from textual.containers import Vertical
 from textual.widget import Widget
 from textual.widgets import Tab, Tabs, Static
@@ -12,21 +13,32 @@ from ui.run_task_output import RunTaskOutput
 class LazyGradleWidget(Widget):
     """Containing widget to hold the layout with Tabs."""
 
+    BINDINGS = [
+        Binding("1", "switch_tab('current-setup')", "Switch to Setup tab"),
+        Binding("2", "switch_tab('output-tab')", "Switch to Output tab"),
+    ]
+
     def __init__(self, gradle_manager: GradleManager, **kwargs):
         super().__init__(**kwargs)
         self.gradle_manager = gradle_manager
         self.output_widget = None
 
     def compose(self) -> ComposeResult:
-        # Create Tabs container
+        # Create Tabs container with numbered labels
         yield Tabs(
-            Tab("Current Setup", id="current-setup"),
-            Tab("Output", id="output-tab"),
+            Tab("[1] Current Setup", id="current-setup"),
+            Tab("[2] Output", id="output-tab"),
             id="gradle-tabs",
             classes="tab-container"
         )
         # Add the tab content container
         yield Vertical(id="tab-content-container", classes="tab-content")
+
+    def action_switch_tab(self, tab_id: str) -> None:
+        """Action to switch tabs via number keys."""
+        tabs = self.query_one("#gradle-tabs", Tabs)
+        tabs.active = tab_id
+        self.switch_to_tab(tab_id)
 
     def on_mount(self) -> None:
         # Initialize the default content for the selected tab
