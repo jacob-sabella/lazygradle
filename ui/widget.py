@@ -21,7 +21,6 @@ class LazyGradleWidget(Widget):
         # Create Tabs container
         yield Tabs(
             Tab("Current Setup", id="current-setup"),
-            Tab("Dummy Tab 1", id="dummy-tab-1"),
             Tab("Output", id="output-tab"),
             id="gradle-tabs",
             classes="tab-container"
@@ -47,8 +46,6 @@ class LazyGradleWidget(Widget):
                     classes="main-layout"
                 )
             )
-        elif tab_id == "dummy-tab-1":
-            tab_content_container.mount(Static("Content for Dummy Tab 1", classes="dummy-content"))
         elif tab_id == "output-tab":
             # Always create a fresh output widget since removed widgets can't be remounted
             logging.info("Creating fresh output widget")

@@ -44,17 +44,22 @@ Footer {
 .output-widget {
   width: 100vw;
   height: 100vh;
+  overflow-y: auto;
+  overflow-x: auto;
 }
 
 .output-log {
-  width: 100vw;
-  height: 100vh;
+  width: 100%;
+  height: auto;
+  min-height: 100vh;
   background: $surface;
   border: solid $primary;
 }
 
-/* Make sure RichLog fills its container */
+/* Make sure RichLog is scrollable */
 RichLog {
   width: 100%;
   height: 100%;
+  overflow-y: auto;
+  scrollbar-size: 2 1;
 }

@@ -1,11 +1,14 @@
 import logging
 from textual.widgets import RichLog
-from textual.containers import Container
+from textual.containers import VerticalScroll
 from textual.app import ComposeResult
 
 
-class RunTaskOutput(Container):
+class RunTaskOutput(VerticalScroll):
     """Widget for displaying streaming Gradle task output."""
+
+    # Enable scrolling for the container
+    can_focus = True
 
     def compose(self) -> ComposeResult:
         """Compose the widget with a RichLog for output display."""
@@ -22,6 +25,10 @@ class RunTaskOutput(Container):
         """Called when widget is mounted."""
         logging.info("RunTaskOutput widget mounted")
         logging.info(f"Widget ID: {self.id}, Visible: {self.visible}, Display: {self.display}")
+
+        # Make sure the widget can receive focus for scrolling
+        self.focus()
+
         try:
             log = self.query_one("#task-output-log", RichLog)
             logging.info(f"RichLog found - ID: {log.id}, Visible: {log.visible}, Display: {log.display}")
@@ -29,6 +36,7 @@ class RunTaskOutput(Container):
             log.write("=" * 80)
             log.write("")
             log.write("[dim]Waiting for task execution...[/dim]")
+            log.write("[dim]Use arrow keys or mouse wheel to scroll[/dim]")
             logging.info("Initial message written to output log")
         except Exception as e:
             logging.error(f"Error in on_mount: {e}", exc_info=True)
