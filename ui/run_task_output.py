@@ -54,7 +54,7 @@ class RunTaskOutput(VerticalScroll):
 
     def write_line(self, line: str):
         """Write a line to the output log."""
-        logging.info(f"Writing to output: {line}")
+        logging.debug(f"Writing to output: {line}")
         if not self.is_mounted:
             logging.error("Widget is not mounted!")
             return
@@ -63,18 +63,15 @@ class RunTaskOutput(VerticalScroll):
             if not log.is_mounted:
                 logging.error("RichLog is not mounted!")
                 return
-            logging.info(f"RichLog state - Visible: {log.visible}, Display: {log.display}, Lines: {len(log.lines)}")
             log.write(line)
-            logging.info(f"After write - Lines: {len(log.lines)}")
-            log.refresh()
-            self.refresh()
-            logging.info(f"Successfully wrote and refreshed: {line}")
+            # Ensure we scroll to the bottom to show latest output
+            log.scroll_end(animate=False)
         except Exception as e:
             logging.error(f"Error writing line: {e}", exc_info=True)
 
     def write_error(self, line: str):
         """Write an error line to the output log in red."""
-        logging.error(f"Writing error to output: {line}")
+        logging.debug(f"Writing stderr to output: {line}")
         if not self.is_mounted:
             logging.error("Widget is not mounted!")
             return
@@ -83,11 +80,8 @@ class RunTaskOutput(VerticalScroll):
             if not log.is_mounted:
                 logging.error("RichLog is not mounted!")
                 return
-            logging.info(f"RichLog state - Visible: {log.visible}, Display: {log.display}, Lines: {len(log.lines)}")
             log.write(f"[bold red]{line}[/bold red]")
-            logging.info(f"After write - Lines: {len(log.lines)}")
-            log.refresh()
-            self.refresh()
-            logging.info(f"Successfully wrote and refreshed error: {line}")
+            # Ensure we scroll to the bottom to show latest output
+            log.scroll_end(animate=False)
         except Exception as e:
             logging.error(f"Error writing error line: {e}", exc_info=True)

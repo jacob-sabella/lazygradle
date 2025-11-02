@@ -73,6 +73,9 @@ class LazyGradleWidget(Widget):
         """Programmatically activate the output tab."""
         tabs = self.query_one("#gradle-tabs", Tabs)
         tabs.active = "output-tab"
+        # Always manually call switch_to_tab to ensure we get a fresh widget
+        # This might get called twice (once here, once from event), but that's okay
+        # because we remove children first, so the second call just ensures it's ready
         self.switch_to_tab("output-tab")
 
     def refresh_current_tab(self) -> None:

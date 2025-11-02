@@ -29,7 +29,15 @@ class LazyGradleApp(App):
         """Action to show the project chooser popup."""
         if not self.project_chooser_open:
             self.project_chooser_open = True
-            self.push_screen(ProjectChooserModal(self.gradle_manager))
+
+            def on_dismiss(result=None):
+                """Callback when modal is dismissed - refresh the main widget."""
+                self.project_chooser_open = False
+                # Refresh the main widget to show the newly selected project
+                widget = self.query_one(LazyGradleWidget)
+                widget.refresh_current_tab()
+
+            self.push_screen(ProjectChooserModal(self.gradle_manager), callback=on_dismiss)
 
     def on_screen_dismissed(self):
         """Ensure the project chooser state is properly reset after dismissing."""
