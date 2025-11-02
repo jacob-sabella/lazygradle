@@ -1,6 +1,7 @@
 <a id="readme-top"></a>
 
 <!-- PROJECT SHIELDS -->
+
 [![Contributors][contributors-shield]][contributors-url]
 [![Forks][forks-shield]][forks-url]
 [![Stargazers][stars-shield]][stars-url]
@@ -20,9 +21,9 @@
     <br />
     <a href="#usage">View Demo</a>
     ·
-    <a href="https://github.com/jsabella/lazygradle/issues/new?labels=bug&template=bug-report---.md">Report Bug</a>
+    <a href="https://github.com/jacob-sabella/lazygradle/issues/new?labels=bug&template=bug-report---.md">Report Bug</a>
     ·
-    <a href="https://github.com/jsabella/lazygradle/issues/new?labels=enhancement&template=feature-request---.md">Request Feature</a>
+    <a href="https://github.com/jacob-sabella/lazygradle/issues/new?labels=enhancement&template=feature-request---.md">Request Feature</a>
   </p>
 </div>
 
@@ -53,18 +54,20 @@
 </details>
 
 <!-- ABOUT THE PROJECT -->
+
 ## About The Project
 
 LazyGradle is a Terminal User Interface (TUI) application that provides a user-friendly, interactive interface for managing and running Gradle tasks. Say goodbye to memorizing complex Gradle commands and hello to an intuitive, keyboard-driven workflow.
 
 **Key Features:**
-* Manage multiple Gradle projects from a single interface
-* View all available tasks with descriptions at a glance
-* Execute tasks with or without parameters
-* Real-time streaming output for task execution
-* Persistent configuration across sessions
-* Dark mode support
-* Fast, keyboard-driven navigation
+
+- Manage multiple Gradle projects from a single interface
+- View all available tasks with descriptions at a glance
+- Execute tasks with or without parameters
+- Real-time streaming output for task execution
+- Persistent configuration across sessions
+- Dark mode support
+- Fast, keyboard-driven navigation
 
 LazyGradle is perfect for developers who work with multiple Gradle projects and want a faster, more visual way to interact with their build system without leaving the terminal.
 
@@ -72,41 +75,51 @@ LazyGradle is perfect for developers who work with multiple Gradle projects and 
 
 ### Built With
 
-* [![Python][Python-badge]][Python-url]
-* [![Textual][Textual-badge]][Textual-url]
+- [![Python][Python-badge]][Python-url]
+- [![Textual][Textual-badge]][Textual-url]
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 <!-- GETTING STARTED -->
+
 ## Getting Started
 
 To get LazyGradle up and running on your local machine, follow these simple steps.
 
 ### Prerequisites
 
-* Python 3.13 or higher
-* A Gradle project (with `gradlew` wrapper or system `gradle` installed)
+- Python 3.13 or higher
+- A Gradle project (with `gradlew` wrapper or system `gradle` installed)
 
 ### Installation
 
 1. Clone the repository
+
    ```sh
-   git clone https://github.com/jsabella/lazygradle.git
+   git clone https://github.com/jacob-sabella/lazygradle.git
    ```
+
 2. Navigate to the project directory
+
    ```sh
    cd lazygradle
    ```
+
 3. Create and activate a virtual environment
+
    ```sh
    python -m venv venv
    source venv/bin/activate  # On Windows: venv\Scripts\activate
    ```
+
 4. Install dependencies
+
    ```sh
    pip install -r requirements.txt
    ```
+
 5. Run the application
+
    ```sh
    python app.py
    ```
@@ -114,6 +127,7 @@ To get LazyGradle up and running on your local machine, follow these simple step
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 <!-- USAGE EXAMPLES -->
+
 ## Usage
 
 ### First Launch
@@ -126,12 +140,12 @@ When you first launch LazyGradle, you'll need to add a Gradle project:
 
 ### Keyboard Shortcuts
 
-* `p` - Open project chooser (switch between projects or add new ones)
-* `d` - Toggle dark mode
-* `r` - Run the selected task
-* `R` - Run the selected task with custom parameters
-* `Tab` / `Shift+Tab` - Navigate between UI elements
-* `↑` / `↓` - Navigate task list
+- `p` - Open project chooser (switch between projects or add new ones)
+- `d` - Toggle dark mode
+- `r` - Run the selected task
+- `R` - Run the selected task with custom parameters
+- `Tab` / `Shift+Tab` - Navigate between UI elements
+- `↑` / `↓` - Navigate task list
 
 ### Running Tasks
 
@@ -147,26 +161,8 @@ LazyGradle stores your project configurations in `~/.config/lazygradle/gradle_ca
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 <!-- ROADMAP -->
-## Roadmap
 
-- [x] Basic task listing and execution
-- [x] Multi-project support
-- [x] Real-time output streaming
-- [x] Task parameters support
-- [ ] Search/filter tasks
-- [ ] Task favorites/bookmarks
-- [ ] Task execution history
-- [ ] Custom task aliases
-- [ ] Configuration export/import
-
-See the [open issues](https://github.com/jsabella/lazygradle/issues) for a full list of proposed features (and known issues).
-
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
-
-<!-- CONTRIBUTING -->
 ## Contributing
-
-Contributions are what make the open source community such an amazing place to learn, inspire, and create. Any contributions you make are **greatly appreciated**.
 
 If you have a suggestion that would make this better, please fork the repo and create a pull request. You can also simply open an issue with the tag "enhancement".
 Don't forget to give the project a star! Thanks again!
@@ -180,41 +176,33 @@ Don't forget to give the project a star! Thanks again!
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 <!-- LICENSE -->
+
 ## License
 
 Distributed under the MIT License. See `LICENSE` for more information.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
-<!-- CONTACT -->
-## Contact
-
-Your Name - [@your_twitter](https://twitter.com/your_twitter) - your.email@example.com
-
-Project Link: [https://github.com/jsabella/lazygradle](https://github.com/jsabella/lazygradle)
-
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
-
-<!-- ACKNOWLEDGMENTS -->
 ## Acknowledgments
 
-* [Textual](https://textual.textualize.io/) - The amazing TUI framework that powers LazyGradle
-* [Best-README-Template](https://github.com/othneildrew/Best-README-Template) - For this README template
-* [Shields.io](https://shields.io/) - For the badges
+- [Textual](https://textual.textualize.io/) - The amazing TUI framework that powers LazyGradle
+- [Best-README-Template](https://github.com/othneildrew/Best-README-Template) - For this README template
+- [Shields.io](https://shields.io/) - For the badges
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 <!-- MARKDOWN LINKS & IMAGES -->
-[contributors-shield]: https://img.shields.io/github/contributors/jsabella/lazygradle.svg?style=for-the-badge
-[contributors-url]: https://github.com/jsabella/lazygradle/graphs/contributors
-[forks-shield]: https://img.shields.io/github/forks/jsabella/lazygradle.svg?style=for-the-badge
-[forks-url]: https://github.com/jsabella/lazygradle/network/members
-[stars-shield]: https://img.shields.io/github/stars/jsabella/lazygradle.svg?style=for-the-badge
-[stars-url]: https://github.com/jsabella/lazygradle/stargazers
-[issues-shield]: https://img.shields.io/github/issues/jsabella/lazygradle.svg?style=for-the-badge
-[issues-url]: https://github.com/jsabella/lazygradle/issues
-[license-shield]: https://img.shields.io/github/license/jsabella/lazygradle.svg?style=for-the-badge
-[license-url]: https://github.com/jsabella/lazygradle/blob/main/LICENSE
+
+[contributors-shield]: https://img.shields.io/github/contributors/jacob-sabella/lazygradle.svg?style=for-the-badge
+[contributors-url]: https://github.com/jacob-sabella/lazygradle/graphs/contributors
+[forks-shield]: https://img.shields.io/github/forks/jacob-sabella/lazygradle.svg?style=for-the-badge
+[forks-url]: https://github.com/jacob-sabella/lazygradle/network/members
+[stars-shield]: https://img.shields.io/github/stars/jacob-sabella/lazygradle.svg?style=for-the-badge
+[stars-url]: https://github.com/jacob-sabella/lazygradle/stargazers
+[issues-shield]: https://img.shields.io/github/issues/jacob-sabella/lazygradle.svg?style=for-the-badge
+[issues-url]: https://github.com/jacob-sabella/lazygradle/issues
+[license-shield]: https://img.shields.io/github/license/jacob-sabella/lazygradle.svg?style=for-the-badge
+[license-url]: https://github.com/jacob-sabella/lazygradle/blob/main/LICENSE
 [Python-badge]: https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white
 [Python-url]: https://www.python.org/
 [Textual-badge]: https://img.shields.io/badge/Textual-000000?style=for-the-badge&logo=python&logoColor=white
