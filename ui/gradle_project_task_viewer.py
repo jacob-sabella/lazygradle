@@ -254,11 +254,16 @@ class GradleProjectTaskViewer(Static):
             logging.info(f"Running task with parameters: {self.selected_task.name}")
 
             # Pass a callback to handle task execution after modal closes
-            def execute_task(parameters):
+            async def execute_task(parameters):
                 # This will be called when the modal closes with parameters
-                if parameters:
-                    # Use run_worker to schedule the async coroutine
-                    self.run_worker(self._run_task_with_params_impl(parameters), exclusive=True)
+                # Note: parameters can be an empty list [] if no params entered, which is valid
+                logging.info(f"Modal callback received parameters: {parameters}")
+                if parameters is not None:
+                    logging.info(f"Starting task execution with parameters: {parameters}")
+                    # Directly await the coroutine
+                    await self._run_task_with_params_impl(parameters)
+                else:
+                    logging.info("User cancelled - parameters is None")
 
             await self.app.push_screen(
                 RunTaskWithParametersModal(self.selected_task, self.gradle_manager),
@@ -267,11 +272,16 @@ class GradleProjectTaskViewer(Static):
 
     async def _run_task_with_params_impl(self, parameters):
         """Internal method to run task with parameters and stream to output tab."""
+        logging.info(f"_run_task_with_params_impl called with parameters: {parameters}")
         # Switch to the output tab first to ensure widget is mounted
+        logging.info("About to activate output tab")
         self.parent_widget.activate_output_tab()
+        logging.info("Output tab activated")
 
         # Give the event loop time to process mount events
+        logging.info("Sleeping 0.1s")
         await asyncio.sleep(0.1)
+        logging.info("Sleep completed, starting wait loop")
 
         # Wait for the widget to be mounted and composed (with timeout)
         max_wait = 2.0  # 2 seconds max
@@ -280,18 +290,23 @@ class GradleProjectTaskViewer(Static):
 
         while elapsed < max_wait:
             output_widget = self.parent_widget.output_widget
+            logging.debug(f"Wait loop: widget={output_widget}, mounted={output_widget.is_mounted if output_widget else 'N/A'}, elapsed={elapsed}")
             if output_widget and output_widget.is_mounted:
                 # Also verify the RichLog child exists
                 try:
                     output_widget.query_one("#task-output-log")
+                    logging.info(f"Widget ready after {elapsed}s")
                     break  # Widget is fully ready
-                except:
+                except Exception as e:
+                    logging.debug(f"RichLog not ready yet: {e}")
                     pass  # Child not ready yet, keep waiting
             await asyncio.sleep(wait_interval)
             elapsed += wait_interval
 
         # Get the output widget
         output_widget = self.parent_widget.output_widget
+        logging.info(f"After wait loop: elapsed={elapsed}s, widget={output_widget}")
+
         if output_widget is None:
             logging.error("Output widget is None after waiting!")
             return
