@@ -8,11 +8,11 @@ from ui.widget import LazyGradleWidget
 
 
 class LazyGradleApp(App):
-    CSS_PATH = "lazy_gradle_app.css"  # Add this line to load the CSS
+    CSS_PATH = "lazy_gradle_app.css"
 
     BINDINGS = [
         Binding("d", "toggle_dark", "Toggle Dark Mode"),
-        Binding("p", "show_project_chooser", "Show Project Chooser"),
+        Binding("p", "show_project_chooser", "Show Project Chooser", priority=True),
     ]
 
     def __init__(self, gradle_manager: GradleManager, **kwargs):
@@ -26,19 +26,15 @@ class LazyGradleApp(App):
         yield Footer()
 
     def action_show_project_chooser(self):
-        """Action to show the project chooser popup."""
         if not self.project_chooser_open:
             self.project_chooser_open = True
 
             def on_dismiss(result=None):
-                """Callback when modal is dismissed - refresh the main widget."""
                 self.project_chooser_open = False
-                # Refresh the main widget to show the newly selected project
                 widget = self.query_one(LazyGradleWidget)
                 widget.refresh_current_tab()
 
             self.push_screen(ProjectChooserModal(self.gradle_manager), callback=on_dismiss)
 
     def on_screen_dismissed(self):
-        """Ensure the project chooser state is properly reset after dismissing."""
         self.project_chooser_open = False
