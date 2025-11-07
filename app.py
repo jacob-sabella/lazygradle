@@ -1,5 +1,4 @@
 import logging
-
 from gradle.gradle_manager import GradleManager
 from ui.lazy_gradle_app import LazyGradleApp
 
@@ -9,9 +8,14 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     handlers=[
         logging.FileHandler("lazygradleapp.log")  # Log to a file only
-    ]
+    ],
 )
 
-if __name__ == "__main__":
+
+def main():
     gradle_manager = GradleManager()
     LazyGradleApp(gradle_manager).run()
+
+
+if __name__ == "__main__":
+    main()
