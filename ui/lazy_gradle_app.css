@@ -1,23 +1,82 @@
-/* General styling for the application */
-.main-layout {
-  width: 100vw;
-  height: 100vh;
-}
+/* =============================================================================
+   LAZYGRADLE TUI STYLES
+   =============================================================================
 
-.no-project {
-  text-align: center;
-  color: gray;
-  background: #f0f0f0;
-}
+   Organization:
+   1. Base Styles - Global element styling
+   2. Layout System - Main containers and primitives
+   3. Project Header - Project info display
+   4. Task Viewer - Task list and details panels
+   5. Modal Components - All modal dialogs
+   6. Output Components - Task output display
+   7. Utility Classes - Reusable helpers
 
-/* Styling the header and footer */
+   Design Tokens Used:
+   - Colors: $surface, $panel, $boost, $primary, $text, $warning, $error
+   - Borders: solid, thick
+   - Spacing: 0, 1, 2 (in Textual grid units)
+
+============================================================================= */
+
+
+/* =============================================================================
+   1. BASE STYLES
+   ============================================================================= */
+
+/* Application-wide base elements */
 Header,
 Footer {
   background: #333;
   color: white;
 }
 
-/* Project header */
+OptionList {
+  width: 100%;
+  background: $surface;
+  border: solid $primary;
+}
+
+DirectoryTree {
+  width: 100%;
+  min-height: 20;
+}
+
+RichLog {
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  scrollbar-size: 2 1;
+}
+
+
+/* =============================================================================
+   2. LAYOUT SYSTEM
+   ============================================================================= */
+
+/* Primary application layout container */
+.main-layout {
+  width: 100vw;
+  height: 100vh;
+}
+
+/* Main content area for tab content */
+.main-content {
+  width: 100vw;
+  height: 100vh;
+}
+
+/* Tab content container */
+#tab-content-container {
+  width: 100vw;
+  height: 100vh;
+}
+
+
+/* =============================================================================
+   3. PROJECT HEADER COMPONENTS
+   ============================================================================= */
+
+/* Project information header bar */
 .project-header {
   width: 100%;
   height: 3;
@@ -27,6 +86,7 @@ Footer {
   align-vertical: middle;
 }
 
+/* Project label text */
 .project-label {
   width: auto;
   height: 1;
@@ -34,18 +94,21 @@ Footer {
   color: $text;
 }
 
+/* Project name display */
 .project-name {
   width: auto;
   height: 1;
   padding: 0 2 0 0;
 }
 
+/* Project path display */
 .project-path {
   width: 1fr;
   height: 1;
   padding: 0;
 }
 
+/* Warning banner for project issues */
 .project-warning {
   width: 100%;
   height: 3;
@@ -55,13 +118,20 @@ Footer {
   border-bottom: thick $error;
 }
 
-/* Main content area */
-.main-content {
-  width: 100vw;
-  height: 100vh;
+/* No project selected state */
+.no-project {
+  text-align: center;
+  color: gray;
+  background: #f0f0f0;
 }
 
-/* Task list panel (left side) */
+
+/* =============================================================================
+   4. TASK VIEWER COMPONENTS
+   ============================================================================= */
+
+/* ----- Task List Panel (Left Side) ----- */
+
 .task-list-panel {
   width: 40%;
   height: 100%;
@@ -70,7 +140,7 @@ Footer {
   padding: 0;
 }
 
-/* Search input */
+/* Task search input field */
 .task-search {
   width: 100%;
   height: auto;
@@ -80,19 +150,15 @@ Footer {
   background: $surface;
 }
 
-OptionList {
-  width: 100%;
-  height: 1fr;
-  background: $surface;
-  border: solid $primary;
-}
-
+/* Task list option list container */
 .task-option-list {
   width: 100%;
   height: 1fr;
 }
 
-/* Task details panel (right side) */
+
+/* ----- Task Details Panel (Right Side) ----- */
+
 .task-details-panel {
   width: 60%;
   height: 100%;
@@ -100,7 +166,7 @@ OptionList {
   padding: 0;
 }
 
-/* Section titles */
+/* Section title headers */
 .section-title {
   width: 100%;
   height: auto;
@@ -112,7 +178,7 @@ OptionList {
   padding: 1;
 }
 
-/* Task name label */
+/* Task name label in details view */
 .task-name-label {
   width: 100%;
   height: auto;
@@ -122,7 +188,7 @@ OptionList {
   border-bottom: solid $primary-lighten-1;
 }
 
-/* Task details scroll area */
+/* Scrollable task details container */
 .task-details-scroll {
   width: 100%;
   height: 1fr;
@@ -130,7 +196,7 @@ OptionList {
   padding: 0;
 }
 
-/* Task description text */
+/* Task description text content */
 .task-description-text {
   width: 100%;
   height: auto;
@@ -139,7 +205,10 @@ OptionList {
   color: $text;
 }
 
-/* Task actions (buttons area) */
+
+/* ----- Task Actions ----- */
+
+/* Action buttons container */
 .task-actions {
   width: 100%;
   height: auto;
@@ -149,42 +218,20 @@ OptionList {
   align-horizontal: center;
 }
 
+/* Individual action buttons */
 .action-button {
   min-width: 20;
   margin: 0 1;
 }
 
-/* Tab styling */
-#tab-content-container {
-  width: 100vw;
-  height: 100vh;
-}
 
-/* Output widget styling */
-.output-widget {
-  width: 100vw;
-  height: 100vh;
-  overflow-y: auto;
-  overflow-x: auto;
-}
+/* =============================================================================
+   5. MODAL COMPONENTS
+   ============================================================================= */
 
-.output-log {
-  width: 100%;
-  height: auto;
-  min-height: 100vh;
-  background: $surface;
-  border: solid $primary;
-}
+/* ----- Base Modal Styles ----- */
 
-/* Make sure RichLog is scrollable */
-RichLog {
-  width: 100%;
-  height: 100%;
-  overflow-y: auto;
-  scrollbar-size: 2 1;
-}
-
-/* Modal styling */
+/* Project chooser modal (full screen) */
 .project-chooser-modal {
   width: 100vw;
   height: 100vh;
@@ -194,6 +241,7 @@ RichLog {
   overflow: hidden;
 }
 
+/* Run with parameters modal (centered) */
 .run-params-modal {
   width: 100;
   height: auto;
@@ -204,6 +252,7 @@ RichLog {
   align: center middle;
 }
 
+/* Modal title bar */
 .modal-title {
   width: 100%;
   height: auto;
@@ -215,29 +264,37 @@ RichLog {
   border-bottom: thick $primary;
 }
 
+/* Modal tabs container */
 .modal-tabs {
   width: 100%;
   height: auto;
   background: $panel;
 }
 
+/* Tabbed content within modals */
 .project-chooser-modal TabbedContent {
   width: 100%;
   height: 1fr;
 }
 
+/* Modal main content area */
 .modal-content {
   width: 100%;
   height: 1fr;
   background: $surface;
 }
 
+/* Tab content area within modals */
 .tab-content-area {
   width: 100%;
   height: 100%;
   padding: 0;
 }
 
+
+/* ----- Modal Sections ----- */
+
+/* Section title within modals */
 .modal-section-title {
   width: 100%;
   height: auto;
@@ -247,6 +304,7 @@ RichLog {
   border-bottom: solid $primary;
 }
 
+/* Project search input in modal */
 .project-search {
   width: 100%;
   height: auto;
@@ -256,11 +314,52 @@ RichLog {
   background: $surface;
 }
 
+/* Scrollable content within modals */
 .modal-scroll {
   width: 100%;
   height: 1fr;
   overflow-y: auto;
 }
+
+/* Modal option list */
+.modal-option-list {
+  width: 100%;
+  height: 100%;
+}
+
+/* Status message display in modals */
+.status-message {
+  width: 100%;
+  height: auto;
+  padding: 1 2;
+  background: $panel;
+  text-align: center;
+  color: $warning;
+}
+
+
+/* ----- Modal Buttons ----- */
+
+/* Button bar at bottom of modals */
+.modal-button-bar {
+  width: 100%;
+  height: auto;
+  padding: 1 2;
+  background: $panel;
+  border-top: solid $primary;
+  align-horizontal: center;
+}
+
+/* Individual modal buttons */
+.modal-button {
+  width: auto;
+  min-width: 20;
+  height: 3;
+  margin: 0 1;
+}
+
+
+/* ----- Run Parameters Modal Specific Overrides ----- */
 
 .run-params-modal .modal-scroll {
   max-height: 8;
@@ -285,12 +384,6 @@ RichLog {
   overflow-y: auto;
 }
 
-.run-params-description {
-  padding: 1 2;
-  width: 100%;
-  height: auto;
-}
-
 .run-params-modal .modal-button-bar {
   height: 5;
   width: 100%;
@@ -306,10 +399,15 @@ RichLog {
   margin: 0 1;
 }
 
-.modal-option-list {
+/* Description text in run parameters modal */
+.run-params-description {
+  padding: 1 2;
   width: 100%;
-  height: 100%;
+  height: auto;
 }
+
+
+/* ----- Modal Tab Content ----- */
 
 #switch-projects-content {
   width: 100%;
@@ -321,37 +419,31 @@ RichLog {
   height: auto;
 }
 
-OptionList {
-  width: 100%;
-  min-height: 20;
+
+/* =============================================================================
+   6. OUTPUT COMPONENTS
+   ============================================================================= */
+
+/* Main output widget container */
+.output-widget {
+  width: 100vw;
+  height: 100vh;
+  overflow-y: auto;
+  overflow-x: auto;
 }
 
-DirectoryTree {
-  width: 100%;
-  min-height: 20;
-}
-
-.status-message {
-  width: 100%;
-  height: auto;
-  padding: 1 2;
-  background: $panel;
-  text-align: center;
-  color: $warning;
-}
-
-.modal-button-bar {
+/* Output log display */
+.output-log {
   width: 100%;
   height: auto;
-  padding: 1 2;
-  background: $panel;
-  border-top: solid $primary;
-  align-horizontal: center;
+  min-height: 100vh;
+  background: $surface;
+  border: solid $primary;
 }
 
-.modal-button {
-  width: auto;
-  min-width: 20;
-  height: 3;
-  margin: 0 1;
-}
+
+/* =============================================================================
+   7. UTILITY CLASSES
+   ============================================================================= */
+
+/* (Reserved for future utility classes like .mt-1, .text-center, etc.) */
