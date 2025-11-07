@@ -33,8 +33,10 @@ Issues = "https://github.com/jacob-sabella/lazygradle/issues"
 lazygradle = "app:main"
 
 [tool.setuptools]
-packages = ["ui", "gradle"]
 py-modules = ["app"]
+
+[tool.setuptools.packages.find]
+include = ["ui*", "gradle*"]
 
 [tool.setuptools.package-data]
 "*" = ["*.json", "*.txt", "*.css", "*.tcss"]
