@@ -9,7 +9,7 @@ description = "A TUI for managing and running your Gradle tasks"
 readme = "README.md"
 requires-python = ">=3.13"
 authors = [
-    {name = "jacob-sabella", email = "[email protected]"}
+    {name = "jacob-sabella", email = "jacobsabella@outlook.com"}
 ]
 license = {text = "MIT"}
 classifiers = [
