@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lazygradle"
+version = "0.0.1"
+description = "A TUI for managing and running your Gradle tasks"
+readme = "README.md"
+requires-python = ">=3.13"
+authors = [
+    {name = "jacob-sabella", email = "[email protected]"}
+]
+license = {text = "MIT"}
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.13",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Environment :: Console",
+    "Topic :: Software Development :: Build Tools",
+]
+keywords = ["gradle", "tui", "build-tool", "terminal"]
+
+dependencies = [
+    "textual",  # The TUI framework mentioned in the README
+    # Add other dependencies from requirements.txt here
+]
+
+[project.urls]
+Homepage = "https://github.com/jacob-sabella/lazygradle"
+Issues = "https://github.com/jacob-sabella/lazygradle/issues"
+
+[project.scripts]
+lazygradle = "app:main"  # Adjust based on actual entry point
