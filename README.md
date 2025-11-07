@@ -14,7 +14,7 @@
   <h3 align="center">LazyGradle</h3>
 
   <p align="center">
-    A beautiful TUI for managing and running your Gradle tasks
+    A TUI for managing and running your Gradle tasks
     <br />
     <a href="#usage"><strong>Explore the docs »</strong></a>
     <br />
