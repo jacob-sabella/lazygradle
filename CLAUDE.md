@@ -60,9 +60,11 @@ python app.py
   - Includes `refresh_current_tab()` method to re-render the active tab when data changes
 
 - `GradleProjectTaskViewer`: Core task viewer (left: task list, right: description + buttons)
-  - Keybindings: `r` (run task), `R` (run task with parameters)
+  - Keybindings: `r` (run task), `R` (run task with parameters), `/` (search tasks)
   - Uses `OptionList` for task selection
+  - Runs tasks in background using `asyncio.create_task()` to keep UI responsive
   - Streams task output via callbacks to `RunTaskOutput` widget using `asyncio.to_thread`
+  - Tracks running task in `self.running_task`
 
 - `GradleProjectChanger`: Widget for displaying/switching current project
 
@@ -80,7 +82,7 @@ python app.py
 
 ### Key Patterns
 
-**Streaming Output**: All Gradle command execution supports optional `on_stdout` and `on_stderr` callbacks for real-time output streaming. Threading is used to stream output without blocking, and `asyncio.to_thread` is used in the UI layer to keep Textual's event loop responsive.
+**Streaming Output & Background Execution**: All Gradle command execution supports optional `on_stdout` and `on_stderr` callbacks for real-time output streaming. Tasks run in background using `asyncio.create_task()` wrapping `asyncio.to_thread()` - this keeps the UI fully responsive during long-running Gradle operations. Callbacks use `loop.call_soon_threadsafe()` to safely update UI widgets from worker threads.
 
 **Config Persistence**: `GradleManager` persists project information (tasks, metadata, selected project) to `~/.config/lazygradle/gradle_cache.json` using JSON serialization.
 

@@ -31,6 +31,7 @@ class GradleProjectTaskViewer(Static):
         self.description_widget = Static("Select a task from the list to view its description.",
                                          classes="task-description-text")
         self.recent_tasks_list = None
+        self.running_task = None  # Track currently running background task
 
     def compose(self) -> ComposeResult:
         selected_project = self.gradle_manager.get_selected_project()
@@ -308,15 +309,29 @@ class GradleProjectTaskViewer(Static):
                 except Exception as e:
                     logging.error(f"Error in on_stderr callback: {e}", exc_info=True)
 
-            # Run the task in a thread to avoid blocking the UI
-            logging.info("Starting task execution in thread")
-            await asyncio.to_thread(
-                self.gradle_manager.run_task,
-                self.selected_task.name,
-                on_stdout=on_stdout,
-                on_stderr=on_stderr
-            )
-            logging.info("Task execution completed")
+            # Define the task execution coroutine
+            async def execute_task():
+                try:
+                    logging.info("Starting task execution in thread")
+                    await asyncio.to_thread(
+                        self.gradle_manager.run_task,
+                        self.selected_task.name,
+                        on_stdout=on_stdout,
+                        on_stderr=on_stderr
+                    )
+                    logging.info("Task execution completed")
+                    loop.call_soon_threadsafe(output_widget.write_line, "")
+                    loop.call_soon_threadsafe(output_widget.write_line, "[bold green]✓ Task completed[/bold green]")
+                except Exception as e:
+                    logging.error(f"Task execution failed: {e}", exc_info=True)
+                    loop.call_soon_threadsafe(output_widget.write_error, f"[bold red]✗ Task failed: {e}[/bold red]")
+                finally:
+                    self.running_task = None
+
+            # Run the task in the background without blocking
+            logging.info("Creating background task")
+            self.running_task = asyncio.create_task(execute_task())
+            logging.info("Background task created, UI is now responsive")
 
     async def run_task_with_parameters(self):
         """Open a modal to enter parameters for the selected task and run it."""
@@ -413,13 +428,27 @@ class GradleProjectTaskViewer(Static):
             except Exception as e:
                 logging.error(f"Error in on_stderr callback: {e}", exc_info=True)
 
-        # Run the task in a thread to avoid blocking the UI
-        logging.info("Starting task with parameters execution in thread")
-        await asyncio.to_thread(
-            self.gradle_manager.run_task_with_parameters,
-            self.selected_task.name,
-            parameters,
-            on_stdout=on_stdout,
-            on_stderr=on_stderr
-        )
-        logging.info("Task with parameters execution completed")
+        # Define the task execution coroutine
+        async def execute_task():
+            try:
+                logging.info("Starting task with parameters execution in thread")
+                await asyncio.to_thread(
+                    self.gradle_manager.run_task_with_parameters,
+                    self.selected_task.name,
+                    parameters,
+                    on_stdout=on_stdout,
+                    on_stderr=on_stderr
+                )
+                logging.info("Task with parameters execution completed")
+                loop.call_soon_threadsafe(output_widget.write_line, "")
+                loop.call_soon_threadsafe(output_widget.write_line, "[bold green]✓ Task completed[/bold green]")
+            except Exception as e:
+                logging.error(f"Task execution failed: {e}", exc_info=True)
+                loop.call_soon_threadsafe(output_widget.write_error, f"[bold red]✗ Task failed: {e}[/bold red]")
+            finally:
+                self.running_task = None
+
+        # Run the task in the background without blocking
+        logging.info("Creating background task")
+        self.running_task = asyncio.create_task(execute_task())
+        logging.info("Background task created, UI is now responsive")
