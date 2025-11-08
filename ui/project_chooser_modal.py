@@ -6,7 +6,15 @@ from textual.binding import Binding
 from textual.containers import Vertical, Horizontal, Container, VerticalScroll
 from textual.css.query import NoMatches
 from textual.screen import ModalScreen
-from textual.widgets import Static, OptionList, DirectoryTree, Button, TabbedContent, TabPane, Input
+from textual.widgets import (
+    Static,
+    OptionList,
+    DirectoryTree,
+    Button,
+    TabbedContent,
+    TabPane,
+    Input,
+)
 from textual.widgets._option_list import Option
 
 from gradle.gradle_manager import GradleManager
@@ -31,9 +39,9 @@ class ProjectChooserModal(ModalScreen):
         with Container(classes="project-chooser-modal"):
             yield Static("Project Manager", classes="modal-title")
             with TabbedContent(initial="switch-projects", id="project-tabs"):
-                with TabPane("Switch Projects", id="switch-projects"):
+                with TabPane("[1] Switch Projects", id="switch-projects"):
                     yield Vertical(id="switch-projects-content")
-                with TabPane("Add New Project", id="add-project"):
+                with TabPane("[2] Add New Project", id="add-project"):
                     yield Vertical(id="add-project-content")
 
     def action_switch_tab(self, tab_id: str) -> None:
@@ -48,25 +56,41 @@ class ProjectChooserModal(ModalScreen):
         project_option_list = OptionList()
         for project_path in self.filtered_projects:
             project_name = os.path.basename(project_path)
-            project_option_list.add_option(Option(f"[bold cyan]{project_name}[/bold cyan]\n[dim]{project_path}[/dim]", id=project_path))
+            project_option_list.add_option(
+                Option(
+                    f"[bold cyan]{project_name}[/bold cyan]\n[dim]{project_path}[/dim]",
+                    id=project_path,
+                )
+            )
 
         switch_content.mount(
-            Static("[bold]Select a Project[/bold]", classes="modal-section-title"),
-            Input(placeholder="Search projects... (press / to focus)", classes="project-search"),
-            project_option_list
+            Input(
+                placeholder="Search projects... (press / to focus)",
+                classes="project-search",
+            ),
+            project_option_list,
         )
 
         add_content = self.query_one("#add-project-content", Vertical)
         self.dir_tree = DirectoryTree(Path.home())
         add_content.mount(
-            Static("[bold]Select a Directory[/bold]", classes="modal-section-title"),
             Static("", classes="status-message"),
             self.dir_tree,
             Horizontal(
-                Button("✓ Confirm", id="confirm_button", variant="success", classes="modal-button"),
-                Button("✗ Cancel", id="cancel_button", variant="error", classes="modal-button"),
-                classes="modal-button-bar"
-            )
+                Button(
+                    "✓ Confirm",
+                    id="confirm_button",
+                    variant="success",
+                    classes="modal-button",
+                ),
+                Button(
+                    "✗ Cancel",
+                    id="cancel_button",
+                    variant="error",
+                    classes="modal-button",
+                ),
+                classes="modal-button-bar",
+            ),
         )
 
     def action_focus_search(self):
@@ -89,8 +113,10 @@ class ProjectChooserModal(ModalScreen):
 
             if search_query:
                 self.filtered_projects = [
-                    project for project in self.all_projects
-                    if search_query in project.lower() or search_query in os.path.basename(project).lower()
+                    project
+                    for project in self.all_projects
+                    if search_query in project.lower()
+                    or search_query in os.path.basename(project).lower()
                 ]
             else:
                 self.filtered_projects = self.all_projects
@@ -100,7 +126,12 @@ class ProjectChooserModal(ModalScreen):
                 option_list.clear_options()
                 for project_path in self.filtered_projects:
                     project_name = os.path.basename(project_path)
-                    option_list.add_option(Option(f"[bold cyan]{project_name}[/bold cyan]\n[dim]{project_path}[/dim]", id=project_path))
+                    option_list.add_option(
+                        Option(
+                            f"[bold cyan]{project_name}[/bold cyan]\n[dim]{project_path}[/dim]",
+                            id=project_path,
+                        )
+                    )
             except:
                 pass
 
@@ -110,7 +141,9 @@ class ProjectChooserModal(ModalScreen):
             self.gradle_manager.select_project(selected_project)
             self.dismiss_modal()
 
-    async def on_directory_tree_directory_selected(self, directory_tree: DirectoryTree.DirectorySelected):
+    async def on_directory_tree_directory_selected(
+        self, directory_tree: DirectoryTree.DirectorySelected
+    ):
         self.selected_path = Path(directory_tree.path)
         self.refresh_static(f"Selected: {self.selected_path}")
 
@@ -118,13 +151,15 @@ class ProjectChooserModal(ModalScreen):
         button = event.button
         if button.id == "confirm_button":
             if self.selected_path is not None and self.selected_path.exists():
-                gradle_files = list(self.selected_path.glob('*.gradle'))
+                gradle_files = list(self.selected_path.glob("*.gradle"))
                 if gradle_files:
                     self.gradle_manager.add_project(str(self.selected_path))
                     self.gradle_manager.select_project(str(self.selected_path))
                     self.dismiss_modal()
                 else:
-                    self.refresh_static("No .gradle files found in the selected directory!")
+                    self.refresh_static(
+                        "No .gradle files found in the selected directory!"
+                    )
         elif button.id == "cancel_button":
             self.dismiss_modal()
 
