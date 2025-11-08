@@ -43,7 +43,6 @@
       </ul>
     </li>
     <li><a href="#usage">Usage</a></li>
-    <li><a href="#roadmap">Roadmap</a></li>
     <li><a href="#contributing">Contributing</a></li>
     <li><a href="#license">License</a></li>
     <li><a href="#contact">Contact</a></li>
@@ -197,6 +196,16 @@ Distributed under the MIT License. See `LICENSE` for more information.
 - [Textual](https://textual.textualize.io/) - The amazing TUI framework that powers LazyGradle
 - [Best-README-Template](https://github.com/othneildrew/Best-README-Template) - For this README template
 - [Shields.io](https://shields.io/) - For the badges
+
+## AI Usage in Development
+
+The ability to get this project to a usable state in my free time was definitely made possible through the help of Generative AI tooling to assist with development. This has included the following.
+
+- Claude Code (CLAUDE.MD file included in project)
+- ChatGPT Web
+- opencode
+
+I do have plans to clean up much of the AI generated comments and code to graduate it a bit above "AI slop" status where its present, but it's certainly been a higher priority for me to get something working and usable for my other purposes (which is primarily Sockbowl development).
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
