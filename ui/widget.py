@@ -44,7 +44,8 @@ class LazyGradleWidget(Widget):
 
     def on_mount(self) -> None:
         # Initialize the default content for the selected tab
-        self.switch_to_tab("current-setup")
+        # Use call_after_refresh to ensure DOM is ready
+        self.call_after_refresh(self.switch_to_tab, "current-setup")
 
     def switch_to_tab(self, tab_id: str) -> None:
         """Switch content based on the selected tab."""

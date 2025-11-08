@@ -19,8 +19,6 @@
     <a href="#usage"><strong>Explore the docs »</strong></a>
     <br />
     <br />
-    <a href="#usage">View Demo</a>
-    ·
     <a href="https://github.com/jacob-sabella/lazygradle/issues/new?labels=bug&template=bug-report---.md">Report Bug</a>
     ·
     <a href="https://github.com/jacob-sabella/lazygradle/issues/new?labels=enhancement&template=feature-request---.md">Request Feature</a>
@@ -59,11 +57,17 @@
 
 LazyGradle is a Terminal User Interface (TUI) application for managing and running Gradle tasks.
 
-![Main Interface](screenshots/main_interface.svg)
-*Main interface showing task list and details*
+![Main Interface](screenshots/home_screen.png)
+_Main interface showing task list and details_
 
-![Search Feature](screenshots/search_feature.svg)
-*Search and filter tasks by name*
+![Project Manager](screenshots/project_manager.png)
+_Manage multiple Gradle projects_
+
+![Run Gradle Tasks](screenshots/run_gradle_task.png)
+_Run Gradle tasks_
+
+![Run Gradle Tasks w/ Parameters](screenshots/run_task_with_parameters.png)
+_Run Gradle tasks with parameters_
 
 **Features:**
 
