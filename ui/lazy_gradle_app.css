@@ -53,20 +53,23 @@ RichLog {
 
 /* Primary application layout container */
 .main-layout {
-  width: 100vw;
-  height: 100vh;
+  width: 100%;
+  height: 100%;
+  background: $surface;
 }
 
 /* Main content area for tab content */
 .main-content {
-  width: 100vw;
-  height: 100vh;
+  width: 100%;
+  height: 100%;
+  background: $surface;
 }
 
 /* Tab content container */
 #tab-content-container {
-  width: 100vw;
-  height: 100vh;
+  width: 100%;
+  height: 1fr;
+  background: $surface;
 }
 
 /* =============================================================================
@@ -126,6 +129,13 @@ RichLog {
    4. TASK VIEWER COMPONENTS
    ============================================================================= */
 
+/* Task viewer main widget */
+.task-viewer {
+  width: 100%;
+  height: 1fr;
+  background: $surface;
+}
+
 /* ----- Task List Panel (Left Side) ----- */
 
 .task-list-panel {
@@ -150,6 +160,8 @@ RichLog {
 .task-option-list {
   width: 100%;
   height: 1fr;
+  max-height: 100%;
+  overflow-y: auto;
 }
 
 /* ----- Task Details Panel (Right Side) ----- */
@@ -170,14 +182,14 @@ RichLog {
   color: $text;
   text-style: bold;
   border-bottom: solid $primary;
-  padding: 1;
+  padding: 0 1;
 }
 
 /* Task name label in details view */
 .task-name-label {
   width: 100%;
   height: auto;
-  padding: 1 2;
+  padding: 0 1;
   background: $panel;
   text-style: bold;
   border-bottom: solid $primary-lighten-1;
@@ -186,16 +198,18 @@ RichLog {
 /* Scrollable task details container */
 .task-details-scroll {
   width: 100%;
-  height: 1fr;
+  height: 2fr;
+  max-height: 50%;
   background: $surface;
   padding: 0;
+  overflow-y: auto;
 }
 
 /* Task description text content */
 .task-description-text {
   width: 100%;
   height: auto;
-  padding: 2;
+  padding: 1;
   background: $surface;
   color: $text;
 }
@@ -204,15 +218,18 @@ RichLog {
 
 /* Recent tasks title */
 .recent-tasks-title {
-  margin-top: 1;
+  margin-top: 0;
 }
 
 /* Recent tasks list */
 .recent-tasks-list {
   width: 100%;
-  height: 10;
+  height: 1fr;
+  max-height: 30%;
+  min-height: 6;
   border: solid $primary;
   background: $surface;
+  overflow-y: auto;
 }
 
 /* ----- Task Actions ----- */
@@ -221,7 +238,7 @@ RichLog {
 .task-actions {
   width: 100%;
   height: auto;
-  padding: 1 2;
+  padding: 0 1;
   background: $panel;
   border-top: solid $primary;
   align-horizontal: center;
@@ -425,17 +442,14 @@ RichLog {
 
 /* Main output widget container */
 .output-widget {
-  width: 100vw;
-  height: 100vh;
-  overflow-y: auto;
-  overflow-x: auto;
+  width: 100%;
+  height: 100%;
 }
 
 /* Output log display */
 .output-log {
   width: 100%;
   height: auto;
-  min-height: 100vh;
   background: $surface;
   border: solid $primary;
 }
