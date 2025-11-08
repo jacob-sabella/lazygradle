@@ -25,26 +25,35 @@ class RunTaskWithParametersModal(ModalScreen):
 
     def compose(self) -> ComposeResult:
         # Modal container matching project chooser style
-        description = self.selected_task.description if self.selected_task.description else 'No description available'
+        description = (
+            self.selected_task.description
+            if self.selected_task.description
+            else "No description available"
+        )
 
         yield Vertical(
             Static("Run Task with Parameters", classes="modal-title"),
             Vertical(
-                Static(f"[bold cyan]{self.selected_task.name}[/bold cyan]", classes="modal-section-title"),
+                Static(
+                    f"[bold cyan]{self.selected_task.name}[/bold cyan]",
+                    classes="modal-section-title",
+                ),
                 VerticalScroll(
-                    Static(f"[dim]{description}[/dim]", classes="run-params-description"),
-                    classes="modal-scroll"
+                    Static(
+                        f"[dim]{description}[/dim]", classes="run-params-description"
+                    ),
+                    classes="modal-scroll",
                 ),
                 Static("[bold]Parameters[/bold]", classes="modal-section-title"),
                 self.render_input_field(),
                 Static(
                     "[dim]Example: --info --stacktrace or -x test[/dim]",
-                    classes="status-message"
+                    classes="status-message",
                 ),
-                classes="modal-content"
+                self.render_buttons(),
+                classes="modal-content",
             ),
-            self.render_buttons(),
-            classes="run-params-modal"
+            classes="run-params-modal",
         )
 
     def on_mount(self) -> None:
@@ -55,17 +64,20 @@ class RunTaskWithParametersModal(ModalScreen):
     def render_input_field(self):
         """Render an input field for parameters."""
         self.param_input = Input(
-            placeholder="e.g., --info --stacktrace",
-            classes="project-search"
+            placeholder="e.g., --info --stacktrace", classes="project-search"
         )
         return self.param_input
 
     def render_buttons(self):
         """Render the Run and Cancel buttons."""
         return Horizontal(
-            Button("▶ Run Task", id="run_button", variant="success", classes="modal-button"),
-            Button("Cancel", id="cancel_button", variant="default", classes="modal-button"),
-            classes="modal-button-bar"
+            Button(
+                "▶ Run Task", id="run_button", variant="success", classes="modal-button"
+            ),
+            Button(
+                "Cancel", id="cancel_button", variant="default", classes="modal-button"
+            ),
+            classes="modal-button-bar",
         )
 
     async def on_button_pressed(self, event: Button.Pressed):
@@ -78,7 +90,9 @@ class RunTaskWithParametersModal(ModalScreen):
     async def action_run_task(self):
         """Run the task with the entered parameters."""
         parameters = self.param_input.value if self.param_input else ""
-        logging.info(f"Modal: Running {self.selected_task.name} with parameters: '{parameters}'")
+        logging.info(
+            f"Modal: Running {self.selected_task.name} with parameters: '{parameters}'"
+        )
         # Split the parameters string into a list
         param_list = parameters.split() if parameters else []
         logging.info(f"Modal: Dismissing with param_list: {param_list}")

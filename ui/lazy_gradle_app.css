@@ -236,9 +236,8 @@ RichLog {
 
 /* Run with parameters modal (centered) */
 .run-params-modal {
-  width: 100;
+  width: 100vw;
   height: auto;
-  max-height: 60vh;
   background: $surface;
   border: thick $primary;
   padding: 0;
@@ -333,8 +332,19 @@ RichLog {
 .modal-button {
   width: auto;
   min-width: 20;
-  height: 3;
+  height: 10vw;
   margin: 0 1;
+}
+
+/* Modal title header */
+.modal-title {
+  width: 100%;
+  height: auto;
+  padding: 1 2;
+  background: $boost;
+  text-align: center;
+  text-style: bold;
+  border-bottom: thick $primary;
 }
 
 /* ----- Run Parameters Modal Specific Overrides ----- */
@@ -346,7 +356,7 @@ RichLog {
 
 .run-params-modal .modal-section-title {
   padding: 0 2;
-  height: 2;
+  height: auto;
 }
 
 .run-params-modal .status-message {
@@ -355,23 +365,21 @@ RichLog {
 }
 
 .run-params-modal .modal-content {
-  padding: 0;
+  padding: 1;
   height: auto;
-  max-height: 30vh;
   width: 100%;
-  overflow-y: auto;
 }
 
 .run-params-modal .modal-button-bar {
-  height: 5;
+  height: 20vw;
   width: 100%;
   padding: 1 2;
   align-horizontal: center;
 }
 
 .run-params-modal .modal-button {
-  width: auto;
-  height: 3;
+  width: 30vw;
+  height: 10vh;
   min-width: 20;
   max-width: 30;
   margin: 0 1;
