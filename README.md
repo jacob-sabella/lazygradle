@@ -197,6 +197,8 @@ Distributed under the MIT License. See `LICENSE` for more information.
 - [Best-README-Template](https://github.com/othneildrew/Best-README-Template) - For this README template
 - [Shields.io](https://shields.io/) - For the badges
 
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
 ## AI Usage in Development
 
 The ability to get this project to a usable state in my free time was definitely made possible through the help of Generative AI tooling to assist with development. This has included the following.
