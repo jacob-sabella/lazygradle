@@ -189,7 +189,7 @@ RichLog {
   color: $text;
   text-style: bold;
   border-bottom: solid $primary;
-  padding: 0 1;
+  padding: 1 1;
 }
 
 /* Task name label in details view */
@@ -371,7 +371,7 @@ RichLog {
 .modal-button {
   width: auto;
   min-width: 20;
-  height: 10vw;
+  height: auto;
   margin: 0 1;
 }
 
@@ -462,7 +462,68 @@ RichLog {
 }
 
 /* =============================================================================
-   7. UTILITY CLASSES
+   7. TASK MANAGER COMPONENTS
+   ============================================================================= */
+
+/* Task manager main widget */
+.task-manager-widget {
+  width: 100%;
+  height: 100%;
+  background: $surface;
+}
+
+/* Task manager container */
+.task-manager-container {
+  width: 100%;
+  height: 100%;
+}
+
+/* Task list panel (left side) */
+.task-manager-container .task-list-panel {
+  width: 35%;
+  height: 100%;
+  border-right: thick $primary;
+  background: $surface;
+  padding: 0;
+}
+
+/* Task manager list */
+.task-manager-list {
+  width: 100%;
+  height: 1fr;
+  overflow-y: auto;
+}
+
+/* Clear history button */
+.clear-history-button {
+  width: 100%;
+  margin: 0 0 1 0;
+}
+
+/* Task output panel (right side) */
+.task-output-panel {
+  width: 65%;
+  height: 100%;
+  background: $surface;
+  padding: 0;
+}
+
+/* Task output scroll container */
+.task-output-scroll {
+  width: 100%;
+  height: 1fr;
+  overflow-y: auto;
+}
+
+/* Task manager output log */
+.task-manager-output {
+  width: 100%;
+  height: 100%;
+  background: $surface;
+}
+
+/* =============================================================================
+   8. UTILITY CLASSES
    ============================================================================= */
 
 /* Size warning container */

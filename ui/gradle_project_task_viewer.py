@@ -9,6 +9,7 @@ from textual.widgets._option_list import Option
 
 from ui.run_task_with_parameters_modal import RunTaskWithParametersModal
 from gradle.gradle_manager import GradleManager
+from ui.task_tracker import TaskTracker
 
 
 class GradleProjectTaskViewer(Static):
@@ -18,10 +19,11 @@ class GradleProjectTaskViewer(Static):
         Binding("/", "focus_search", "Search Tasks")
     ]
 
-    def __init__(self, gradle_manager: GradleManager, parent_widget, **kwargs):
+    def __init__(self, gradle_manager: GradleManager, parent_widget, task_tracker: TaskTracker, **kwargs):
         super().__init__(**kwargs)
         self.gradle_manager = gradle_manager
         self.parent_widget = parent_widget  # Reference to LazyGradleWidget
+        self.task_tracker = task_tracker
         self.tasks = []
         self.filtered_tasks = []
         self.selected_task = None
@@ -248,64 +250,37 @@ class GradleProjectTaskViewer(Static):
         if self.selected_task:
             logging.info(f"Running task: {self.selected_task.name}")
 
-            # Switch to the output tab first to ensure widget is mounted
+            # Switch to the output tab first
             self.parent_widget.activate_output_tab()
 
             # Give the event loop time to process mount events
             await asyncio.sleep(0.1)
 
-            # Wait for the widget to be mounted and composed (with timeout)
-            max_wait = 2.0  # 2 seconds max
-            wait_interval = 0.05  # Check every 50ms
-            elapsed = 0.0
+            # Create a tracked task
+            tracked_task = self.task_tracker.create_task(self.selected_task.name, [])
+            task_id = tracked_task.task_id
 
-            while elapsed < max_wait:
-                output_widget = self.parent_widget.output_widget
-                if output_widget and output_widget.is_mounted:
-                    # Also verify the RichLog child exists
-                    try:
-                        output_widget.query_one("#task-output-log")
-                        break  # Widget is fully ready
-                    except:
-                        pass  # Child not ready yet, keep waiting
-                await asyncio.sleep(wait_interval)
-                elapsed += wait_interval
-
-            # Get the output widget
-            output_widget = self.parent_widget.output_widget
-            if output_widget is None:
-                logging.error("Output widget is None after waiting!")
+            # Get the task manager widget
+            task_manager = self.parent_widget.task_manager_widget
+            if not task_manager:
+                logging.error("Task manager widget is None!")
                 return
-
-            if not output_widget.is_mounted:
-                logging.error(f"Output widget still not mounted after {elapsed}s!")
-                return
-
-            logging.info(f"Got output widget: {output_widget}, mounted: {output_widget.is_mounted} (waited {elapsed}s)")
-
-            # Clear and prepare output
-            logging.info("Clearing output widget")
-            output_widget.clear_output()
-
-            # Write a test message directly
-            output_widget.write_line(f"[bold cyan]Starting task: {self.selected_task.name}[/bold cyan]")
-            output_widget.write_line("")
 
             # Get the asyncio event loop for thread-safe calls
             loop = asyncio.get_event_loop()
 
-            # Create callbacks that write to the output widget
+            # Create callbacks that write to the tracked task
             def on_stdout(line: str):
                 logging.debug(f"Callback stdout: {line}")
                 try:
-                    loop.call_soon_threadsafe(output_widget.write_line, line)
+                    loop.call_soon_threadsafe(task_manager.append_output_to_task, task_id, line)
                 except Exception as e:
                     logging.error(f"Error in on_stdout callback: {e}", exc_info=True)
 
             def on_stderr(line: str):
                 logging.debug(f"Callback stderr: {line}")
                 try:
-                    loop.call_soon_threadsafe(output_widget.write_error, line)
+                    loop.call_soon_threadsafe(task_manager.append_output_to_task, task_id, f"[red]{line}[/red]")
                 except Exception as e:
                     logging.error(f"Error in on_stderr callback: {e}", exc_info=True)
 
@@ -320,11 +295,10 @@ class GradleProjectTaskViewer(Static):
                         on_stderr=on_stderr
                     )
                     logging.info("Task execution completed")
-                    loop.call_soon_threadsafe(output_widget.write_line, "")
-                    loop.call_soon_threadsafe(output_widget.write_line, "[bold green]✓ Task completed[/bold green]")
+                    loop.call_soon_threadsafe(self.task_tracker.mark_completed, task_id)
                 except Exception as e:
                     logging.error(f"Task execution failed: {e}", exc_info=True)
-                    loop.call_soon_threadsafe(output_widget.write_error, f"[bold red]✗ Task failed: {e}[/bold red]")
+                    loop.call_soon_threadsafe(self.task_tracker.mark_failed, task_id, str(e))
                 finally:
                     self.running_task = None
 
@@ -358,73 +332,38 @@ class GradleProjectTaskViewer(Static):
     async def _run_task_with_params_impl(self, parameters):
         """Internal method to run task with parameters and stream to output tab."""
         logging.info(f"_run_task_with_params_impl called with parameters: {parameters}")
-        # Switch to the output tab first to ensure widget is mounted
-        logging.info("About to activate output tab")
+
+        # Switch to the output tab first
         self.parent_widget.activate_output_tab()
-        logging.info("Output tab activated")
 
         # Give the event loop time to process mount events
-        logging.info("Sleeping 0.1s")
         await asyncio.sleep(0.1)
-        logging.info("Sleep completed, starting wait loop")
 
-        # Wait for the widget to be mounted and composed (with timeout)
-        max_wait = 2.0  # 2 seconds max
-        wait_interval = 0.05  # Check every 50ms
-        elapsed = 0.0
+        # Create a tracked task
+        tracked_task = self.task_tracker.create_task(self.selected_task.name, parameters)
+        task_id = tracked_task.task_id
 
-        while elapsed < max_wait:
-            output_widget = self.parent_widget.output_widget
-            logging.debug(f"Wait loop: widget={output_widget}, mounted={output_widget.is_mounted if output_widget else 'N/A'}, elapsed={elapsed}")
-            if output_widget and output_widget.is_mounted:
-                # Also verify the RichLog child exists
-                try:
-                    output_widget.query_one("#task-output-log")
-                    logging.info(f"Widget ready after {elapsed}s")
-                    break  # Widget is fully ready
-                except Exception as e:
-                    logging.debug(f"RichLog not ready yet: {e}")
-                    pass  # Child not ready yet, keep waiting
-            await asyncio.sleep(wait_interval)
-            elapsed += wait_interval
-
-        # Get the output widget
-        output_widget = self.parent_widget.output_widget
-        logging.info(f"After wait loop: elapsed={elapsed}s, widget={output_widget}")
-
-        if output_widget is None:
-            logging.error("Output widget is None after waiting!")
+        # Get the task manager widget
+        task_manager = self.parent_widget.task_manager_widget
+        if not task_manager:
+            logging.error("Task manager widget is None!")
             return
-
-        if not output_widget.is_mounted:
-            logging.error(f"Output widget still not mounted after {elapsed}s!")
-            return
-
-        logging.info(f"Got output widget: {output_widget}, mounted: {output_widget.is_mounted} (waited {elapsed}s)")
-
-        # Clear and prepare output
-        logging.info("Clearing output widget")
-        output_widget.clear_output()
-
-        # Write a test message directly
-        output_widget.write_line(f"[bold cyan]Starting task: {self.selected_task.name}[/bold cyan]")
-        output_widget.write_line("")
 
         # Get the asyncio event loop for thread-safe calls
         loop = asyncio.get_event_loop()
 
-        # Create callbacks that write to the output widget
+        # Create callbacks that write to the tracked task
         def on_stdout(line: str):
             logging.debug(f"Callback stdout: {line}")
             try:
-                loop.call_soon_threadsafe(output_widget.write_line, line)
+                loop.call_soon_threadsafe(task_manager.append_output_to_task, task_id, line)
             except Exception as e:
                 logging.error(f"Error in on_stdout callback: {e}", exc_info=True)
 
         def on_stderr(line: str):
             logging.debug(f"Callback stderr: {line}")
             try:
-                loop.call_soon_threadsafe(output_widget.write_error, line)
+                loop.call_soon_threadsafe(task_manager.append_output_to_task, task_id, f"[red]{line}[/red]")
             except Exception as e:
                 logging.error(f"Error in on_stderr callback: {e}", exc_info=True)
 
@@ -440,11 +379,10 @@ class GradleProjectTaskViewer(Static):
                     on_stderr=on_stderr
                 )
                 logging.info("Task with parameters execution completed")
-                loop.call_soon_threadsafe(output_widget.write_line, "")
-                loop.call_soon_threadsafe(output_widget.write_line, "[bold green]✓ Task completed[/bold green]")
+                loop.call_soon_threadsafe(self.task_tracker.mark_completed, task_id)
             except Exception as e:
                 logging.error(f"Task execution failed: {e}", exc_info=True)
-                loop.call_soon_threadsafe(output_widget.write_error, f"[bold red]✗ Task failed: {e}[/bold red]")
+                loop.call_soon_threadsafe(self.task_tracker.mark_failed, task_id, str(e))
             finally:
                 self.running_task = None
 

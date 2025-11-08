@@ -55,20 +55,32 @@ python app.py
   - Auto-updates on terminal resize
 
 - `LazyGradleWidget`: Tab container widget
-  - Two tabs: "Current Setup", "Output"
+  - Two tabs: "Current Setup", "Task Manager"
   - Dynamically mounts content based on selected tab via `switch_to_tab()`
   - Includes `refresh_current_tab()` method to re-render the active tab when data changes
+  - Manages `TaskTracker` instance for tracking all task executions
 
 - `GradleProjectTaskViewer`: Core task viewer (left: task list, right: description + buttons)
   - Keybindings: `r` (run task), `R` (run task with parameters), `/` (search tasks)
   - Uses `OptionList` for task selection
   - Runs tasks in background using `asyncio.create_task()` to keep UI responsive
-  - Streams task output via callbacks to `RunTaskOutput` widget using `asyncio.to_thread`
-  - Tracks running task in `self.running_task`
+  - Registers tasks with `TaskTracker` when executing
+  - Streams task output to tracked tasks via callbacks using `asyncio.to_thread`
 
 - `GradleProjectChanger`: Widget for displaying/switching current project
 
-- `RunTaskOutput`: Output display using Textual's `RichLog` for streaming task output
+- `TaskTracker`: Manages running and historical task executions
+  - Tracks up to 50 tasks (configurable)
+  - Stores task status (running/completed/failed), timestamps, and output
+  - Provides callbacks for UI updates when tasks change
+  - Maintains task list with running tasks first, then history
+
+- `TaskManagerWidget`: Task execution history and output viewer
+  - Left panel: List of all tasks (running + history) with status icons and durations
+  - Right panel: Selected task's full output with metadata
+  - Status icons: ▶ (running), ✓ (completed), ✗ (failed)
+  - Includes "Clear History" button to remove completed/failed tasks
+  - Auto-updates display when tasks are updated or completed
 
 - `ProjectChooserModal`: Modal for selecting/adding Gradle projects
 
