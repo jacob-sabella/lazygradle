@@ -30,6 +30,7 @@ class GradleProjectTaskViewer(Static):
         self.task_name_label = Static("", classes="task-name-label")
         self.description_widget = Static("Select a task from the list to view its description.",
                                          classes="task-description-text")
+        self.recent_tasks_list = None
 
     def compose(self) -> ComposeResult:
         selected_project = self.gradle_manager.get_selected_project()
@@ -53,7 +54,7 @@ class GradleProjectTaskViewer(Static):
                     self.render_task_list(),
                     classes="task-list-panel"
                 ),
-                # Right panel: Task details and actions
+                # Right panel: Task details, actions, and recent tasks
                 Vertical(
                     Static("Task Details", classes="section-title"),
                     VerticalScroll(
@@ -62,6 +63,8 @@ class GradleProjectTaskViewer(Static):
                         classes="task-details-scroll"
                     ),
                     self.render_buttons(),
+                    Static("Recently Run Tasks", classes="section-title recent-tasks-title"),
+                    self.render_recent_tasks(),
                     classes="task-details-panel"
                 ),
                 classes="main-content"
@@ -86,6 +89,42 @@ class GradleProjectTaskViewer(Static):
             Button("⚙ Run with Params (R)", id="run_task_with_params_button", variant="primary", classes="action-button"),
             classes="task-actions"
         )
+
+    def render_recent_tasks(self):
+        """Render the recent tasks list."""
+        recent_tasks = self.gradle_manager.get_recent_tasks()
+        self.recent_tasks_list = OptionList(id="recent-tasks-list", classes="recent-tasks-list")
+
+        if recent_tasks:
+            from datetime import datetime
+            for idx, task_record in enumerate(recent_tasks):
+                task_name = task_record.get("task_name", "Unknown")
+                parameters = task_record.get("parameters", "")
+                timestamp = task_record.get("timestamp", "")
+
+                # Format timestamp nicely
+                try:
+                    dt = datetime.fromisoformat(timestamp)
+                    time_str = dt.strftime("%H:%M:%S")
+                except:
+                    time_str = ""
+
+                # Build display text
+                if parameters:
+                    display = f"{task_name} {parameters}"
+                else:
+                    display = task_name
+
+                if time_str:
+                    display = f"[dim]{time_str}[/dim] {display}"
+
+                # Use unique ID combining index to avoid duplicates
+                unique_id = f"recent_{idx}"
+                self.recent_tasks_list.add_option(Option(display, id=unique_id))
+        else:
+            self.recent_tasks_list.add_option(Option("[dim]No tasks run yet[/dim]", id="no_tasks", disabled=True))
+
+        return self.recent_tasks_list
 
     def on_input_changed(self, event: Input.Changed) -> None:
         """Handle search input changes."""
@@ -146,6 +185,37 @@ class GradleProjectTaskViewer(Static):
 
     async def on_option_list_option_selected(self, event: OptionList.OptionSelected):
         """Handle task selection and update the description on mouse click or enter key."""
+        # Check if this is from the recent tasks list
+        if event.option_list.id == "recent-tasks-list":
+            # User selected a recent task - re-run it
+            task_id = event.option.id
+            if task_id and task_id.startswith("recent_"):
+                # Extract the index from the ID
+                try:
+                    idx = int(task_id.split("_")[1])
+                    recent_tasks = self.gradle_manager.get_recent_tasks()
+                    if 0 <= idx < len(recent_tasks):
+                        task_record = recent_tasks[idx]
+                        task_name = task_record.get("task_name")
+                        parameters = task_record.get("parameters", "")
+
+                        # Set selected task for display
+                        self.selected_task = next((task for task in self.tasks if task.name == task_name), None)
+                        if self.selected_task:
+                            self.update_task_description(self.selected_task)
+
+                        # Re-run the task with or without parameters
+                        if parameters:
+                            # Parse parameters back into a list
+                            param_list = parameters.split()
+                            await self._run_task_with_params_impl(param_list)
+                        else:
+                            await self.run_task()
+                except (ValueError, IndexError) as e:
+                    logging.error(f"Error parsing recent task ID: {e}")
+            return
+
+        # Otherwise, this is from the main task list
         task_name = event.option.prompt  # Get the selected task name
         # Search in all tasks, not just filtered ones, to get the full task object
         self.selected_task = next((task for task in self.tasks if task.name == task_name), None)

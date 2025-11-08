@@ -3,6 +3,7 @@ import json
 import logging
 from pathlib import Path
 from typing import Optional, Dict, List, Callable
+from datetime import datetime
 from gradle.gradle_wrapper import GradleWrapper, TaskList, TaskMetadata
 
 
@@ -19,15 +20,19 @@ class Task:
 
 
 class Project:
-    def __init__(self, tasks: Optional[List[Task]] = None, metadata: Optional[Dict[str, dict]] = None):
+    def __init__(self, tasks: Optional[List[Task]] = None, metadata: Optional[Dict[str, dict]] = None,
+                 recent_tasks: Optional[List[Dict[str, str]]] = None):
         self.tasks = tasks or []
         self.metadata = metadata or {}
+        self.recent_tasks = recent_tasks or []  # List of {task_name, timestamp, parameters}
 
     def __getitem__(self, key: str):
         if key == "tasks":
             return self.tasks
         elif key == "metadata":
             return self.metadata
+        elif key == "recent_tasks":
+            return self.recent_tasks
         else:
             raise KeyError(f"{key} not found in Project.")
 
@@ -36,6 +41,8 @@ class Project:
             self.tasks = value
         elif key == "metadata":
             self.metadata = value
+        elif key == "recent_tasks":
+            self.recent_tasks = value
         else:
             raise KeyError(f"Cannot set value for {key}, not found in Project.")
 
@@ -84,7 +91,8 @@ class GradleManager:
                 projects = {
                     key: Project(
                         tasks=[Task(**task) for task in value.get("tasks", [])],
-                        metadata=value.get("metadata", {})
+                        metadata=value.get("metadata", {}),
+                        recent_tasks=value.get("recent_tasks", [])
                     )
                     for key, value in data.get("projects", {}).items()
                 }
@@ -102,6 +110,7 @@ class GradleManager:
                 key: {
                     "tasks": [{"name": task.name, "description": task.description} for task in value.tasks],
                     "metadata": value.metadata,
+                    "recent_tasks": value.recent_tasks,
                 }
                 for key, value in self.config.projects.items()
             },
@@ -237,6 +246,55 @@ class GradleManager:
         """
         return self.config.projects
 
+    def _record_task_execution(self, task_name: str, parameters: Optional[List[str]] = None) -> None:
+        """
+        Record a task execution in the recent tasks list for the current project.
+
+        Parameters:
+        task_name (str): The name of the task that was executed.
+        parameters (Optional[List[str]]): The parameters passed to the task.
+        """
+        selected_project = self.get_selected_project()
+        if not selected_project:
+            return
+
+        if selected_project not in self.config.projects:
+            return
+
+        project = self.config.projects[selected_project]
+
+        # Create task execution record
+        task_record = {
+            "task_name": task_name,
+            "timestamp": datetime.now().isoformat(),
+            "parameters": " ".join(parameters) if parameters else ""
+        }
+
+        # Add to recent tasks (keep last 10)
+        project.recent_tasks.insert(0, task_record)
+        project.recent_tasks = project.recent_tasks[:10]
+
+        self._save_config()
+        self.logger.debug(f"Recorded task execution: {task_name}")
+
+    def get_recent_tasks(self, project_dir: Optional[str] = None) -> List[Dict[str, str]]:
+        """
+        Get the list of recently run tasks for a project.
+
+        Parameters:
+        project_dir (Optional[str]): The project directory. If None, uses currently selected project.
+
+        Returns:
+        List[Dict[str, str]]: List of recent task records.
+        """
+        if project_dir is None:
+            project_dir = self.get_selected_project()
+
+        if not project_dir or project_dir not in self.config.projects:
+            return []
+
+        return self.config.projects[project_dir].recent_tasks
+
     def run_task(self, task_name: str, on_stdout: Optional[Callable[[str], None]] = None,
                  on_stderr: Optional[Callable[[str], None]] = None) -> Optional[str]:
         """
@@ -264,6 +322,7 @@ class GradleManager:
             return f"Error: {error.error_message}"
 
         self.logger.debug(f"Task '{task_name}' executed successfully.")
+        self._record_task_execution(task_name)
         return output
 
     def run_task_with_parameters(self, task_name: str, parameters: List[str],
@@ -296,5 +355,6 @@ class GradleManager:
             return f"Error: {error.error_message}"
 
         self.logger.debug(f"Task '{task_name}' with parameters '{parameters}' executed successfully.")
+        self._record_task_execution(task_name, parameters)
         return output
 

@@ -200,6 +200,21 @@ RichLog {
   color: $text;
 }
 
+/* ----- Recently Run Tasks ----- */
+
+/* Recent tasks title */
+.recent-tasks-title {
+  margin-top: 1;
+}
+
+/* Recent tasks list */
+.recent-tasks-list {
+  width: 100%;
+  height: 10;
+  border: solid $primary;
+  background: $surface;
+}
+
 /* ----- Task Actions ----- */
 
 /* Action buttons container */
