@@ -46,9 +46,16 @@ python app.py
 - `LazyGradleApp`: Main Textual app with tab system
   - Keybindings: `d` (toggle dark mode), `p` (show project chooser)
   - Manages app-level state and modals
+  - Enforces minimum terminal size (100x30) - displays warning message if terminal is too small
+  - Listens for resize events and dynamically switches between warning and main content
+
+- `SizeWarningWidget`: Warning display for undersized terminals
+  - Shows current terminal dimensions vs minimum required
+  - Styled with error border and centered content
+  - Auto-updates on terminal resize
 
 - `LazyGradleWidget`: Tab container widget
-  - Three tabs: "Current Setup", "Dummy Tab 1", "Dummy Tab 2"
+  - Two tabs: "Current Setup", "Output"
   - Dynamically mounts content based on selected tab via `switch_to_tab()`
   - Includes `refresh_current_tab()` method to re-render the active tab when data changes
 

@@ -51,6 +51,13 @@ RichLog {
    2. LAYOUT SYSTEM
    ============================================================================= */
 
+/* Main container for app content */
+#main-container {
+  width: 100%;
+  height: 1fr;
+  background: $surface;
+}
+
 /* Primary application layout container */
 .main-layout {
   width: 100%;
@@ -458,4 +465,19 @@ RichLog {
    7. UTILITY CLASSES
    ============================================================================= */
 
-/* (Reserved for future utility classes like .mt-1, .text-center, etc.) */
+/* Size warning container */
+.size-warning-container {
+  width: 100%;
+  height: 100%;
+  align: center middle;
+}
+
+/* Size warning message */
+.size-warning-message {
+  text-align: center;
+  padding: 2;
+  background: $surface;
+  border: thick $error;
+  width: auto;
+  height: auto;
+}
