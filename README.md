@@ -11,7 +11,7 @@
 <!-- PROJECT LOGO -->
 <br />
 <div align="center">
-  <h3 align="center">LazyGradle</h3>
+  <h3 align="center">lazygradle</h3>
 
   <p align="center">
     A TUI for managing and running your Gradle tasks
