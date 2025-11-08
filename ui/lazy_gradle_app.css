@@ -205,7 +205,7 @@ RichLog {
 /* Scrollable task details container */
 .task-details-scroll {
   width: 100%;
-  height: 2fr;
+  height: auto;
   max-height: 50%;
   background: $surface;
   padding: 0;

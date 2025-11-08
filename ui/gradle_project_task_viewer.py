@@ -75,6 +75,11 @@ class GradleProjectTaskViewer(Static):
         else:
             yield Label("No project selected.", classes="no-project")
 
+    def on_mount(self) -> None:
+        """Set focus on the task list when mounted."""
+        if self.task_option_list and len(self.filtered_tasks) > 0:
+            self.task_option_list.focus()
+
     def render_task_list(self):
         """Render the task list on the left."""
         self.task_option_list = OptionList(id="task-option-list", classes="task-option-list")
