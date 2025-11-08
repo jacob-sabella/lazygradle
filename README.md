@@ -57,19 +57,24 @@
 
 ## About The Project
 
-LazyGradle is a Terminal User Interface (TUI) application that provides a user-friendly, interactive interface for managing and running Gradle tasks. Say goodbye to memorizing complex Gradle commands and hello to an intuitive, keyboard-driven workflow.
+LazyGradle is a Terminal User Interface (TUI) application for managing and running Gradle tasks.
 
-**Key Features:**
+![Main Interface](screenshots/main_interface.svg)
+*Main interface showing task list and details*
 
-- Manage multiple Gradle projects from a single interface
-- View all available tasks with descriptions at a glance
-- Execute tasks with or without parameters
-- Real-time streaming output for task execution
-- Persistent configuration across sessions
-- Dark mode support
-- Fast, keyboard-driven navigation
+![Search Feature](screenshots/search_feature.svg)
+*Search and filter tasks by name*
 
-LazyGradle is perfect for developers who work with multiple Gradle projects and want a faster, more visual way to interact with their build system without leaving the terminal.
+**Features:**
+
+- Manage multiple Gradle projects
+- View all available tasks with descriptions
+- Run tasks with or without parameters
+- Real-time task output streaming
+- Configuration persistence
+- Dark mode
+- Keyboard navigation
+- Task execution history tracking
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
