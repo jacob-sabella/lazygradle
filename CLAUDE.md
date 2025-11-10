@@ -34,6 +34,8 @@ python app.py
   - Streams stdout/stderr via callbacks using threading
   - Supports timeouts
   - Key methods: `list_all_tasks()`, `get_task_metadata()`, `run_custom_gradle_task()`
+  - Permission checking: `check_gradlew_permissions()`, `can_fix_gradlew_permissions()`, `fix_gradlew_permissions()`
+  - Enhanced error handling for PermissionError exceptions when executing gradlew
 
 - `GradleManager`: High-level project and task manager
   - Manages multiple Gradle projects via config file at `~/.config/lazygradle/gradle_cache.json`
@@ -61,11 +63,12 @@ python app.py
   - Manages `TaskTracker` instance for tracking all task executions
 
 - `GradleProjectTaskViewer`: Core task viewer (left: task list, right: description + buttons)
-  - Keybindings: `r` (run task), `R` (run task with parameters), `/` (search tasks)
+  - Keybindings: `r` (run task), `R` (run task with parameters), `/` (search tasks), `F5` (refresh task list)
   - Uses `OptionList` for task selection
   - Runs tasks in background using `asyncio.create_task()` to keep UI responsive
   - Registers tasks with `TaskTracker` when executing
   - Streams task output to tracked tasks via callbacks using `asyncio.to_thread`
+  - Task list refresh (F5): Non-blocking refresh that clears the list, shows loading indicator, and re-fetches tasks from Gradle
 
 - `GradleProjectChanger`: Widget for displaying/switching current project
 
@@ -83,6 +86,14 @@ python app.py
   - Auto-updates display when tasks are updated or completed
 
 - `ProjectChooserModal`: Modal for selecting/adding Gradle projects
+  - Validates gradlew permissions when adding new projects
+  - Automatically shows `GradlewPermissionModal` if execute permissions are missing
+
+- `GradlewPermissionModal`: Modal for handling gradlew permission issues
+  - Detects if current user can fix permissions automatically
+  - Shows "Fix Permissions" button if user has write access to gradlew file
+  - Shows manual chmod instructions if elevated permissions are needed
+  - Blocks project addition until permissions are fixed
 
 - `RunTaskWithParametersModal`: Modal for entering task parameters before execution
 

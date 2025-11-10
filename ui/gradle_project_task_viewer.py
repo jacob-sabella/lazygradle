@@ -16,7 +16,8 @@ class GradleProjectTaskViewer(Static):
     BINDINGS = [
         Binding("r", "run_task", "Run Task"),
         Binding("R", "run_task_with_parameters", "Run Task with Parameters"),
-        Binding("/", "focus_search", "Search Tasks")
+        Binding("/", "focus_search", "Search Tasks"),
+        Binding("f5", "refresh_tasks", "Refresh Tasks")
     ]
 
     def __init__(self, gradle_manager: GradleManager, parent_widget, task_tracker: TaskTracker, **kwargs):
@@ -34,6 +35,7 @@ class GradleProjectTaskViewer(Static):
                                          classes="task-description-text")
         self.recent_tasks_list = None
         self.running_task = None  # Track currently running background task
+        self.is_refreshing = False  # Track if we're currently refreshing the task list
 
     def compose(self) -> ComposeResult:
         selected_project = self.gradle_manager.get_selected_project()
@@ -170,6 +172,113 @@ class GradleProjectTaskViewer(Static):
     def action_focus_search(self):
         """Focus the search input."""
         self.search_input.focus()
+
+    async def action_refresh_tasks(self):
+        """Refresh the task list from the Gradle project (non-blocking)."""
+        if self.is_refreshing:
+            logging.info("Already refreshing tasks, skipping...")
+            return
+
+        selected_project = self.gradle_manager.get_selected_project()
+        if not selected_project:
+            logging.warning("No project selected, cannot refresh tasks")
+            return
+
+        logging.info("Starting task list refresh...")
+        self.is_refreshing = True
+
+        # Clear the task list and show loading indicator
+        if self.task_option_list:
+            self.task_option_list.clear_options()
+            self.task_option_list.add_option(
+                Option("[bold yellow]⟳ Refreshing tasks...[/bold yellow]", disabled=True)
+            )
+
+        # Clear task description
+        self.task_name_label.update("[bold yellow]Refreshing...[/bold yellow]")
+        self.description_widget.update("[dim]Loading tasks from Gradle project...[/dim]")
+        self.selected_task = None
+
+        # Clear search input
+        search_query = self.search_input.value
+
+        # Perform the refresh in a background thread to avoid blocking
+        async def refresh_in_background():
+            try:
+                logging.info("Fetching tasks in background thread...")
+                # Run the potentially slow update_project_tasks in a thread
+                error_message = await asyncio.to_thread(
+                    self.gradle_manager.update_project_tasks,
+                    selected_project
+                )
+
+                if error_message:
+                    logging.error(f"Error refreshing tasks: {error_message}")
+                    # Show error in task list
+                    if self.task_option_list:
+                        self.task_option_list.clear_options()
+                        self.task_option_list.add_option(
+                            Option(f"[bold red]✗ Error: {error_message}[/bold red]", disabled=True)
+                        )
+                    self.task_name_label.update("[bold red]Refresh Failed[/bold red]")
+                    self.description_widget.update(f"[red]{error_message}[/red]")
+                else:
+                    # Successfully refreshed - reload tasks
+                    logging.info("Tasks refreshed successfully, updating UI...")
+                    project_info = self.gradle_manager.get_project_info(selected_project)
+
+                    if project_info and project_info.tasks:
+                        self.tasks = project_info.tasks
+
+                        # Re-apply search filter if there was one
+                        if search_query:
+                            self.filtered_tasks = [
+                                task for task in self.tasks
+                                if search_query in task.name.lower() or search_query in task.description.lower()
+                            ]
+                        else:
+                            self.filtered_tasks = self.tasks
+
+                        # Update the task list UI
+                        if self.task_option_list:
+                            self.task_option_list.clear_options()
+                            for task in self.filtered_tasks:
+                                self.task_option_list.add_option(Option(task.name))
+
+                            # Show success message briefly
+                            self.task_name_label.update(f"[bold green]✓ Refreshed {len(self.tasks)} tasks[/bold green]")
+                            self.description_widget.update("[dim]Select a task from the list to view its description.[/dim]")
+
+                            # Focus the task list
+                            if len(self.filtered_tasks) > 0:
+                                self.task_option_list.focus()
+                        else:
+                            logging.error("task_option_list is None!")
+                    else:
+                        logging.warning("No tasks found after refresh")
+                        if self.task_option_list:
+                            self.task_option_list.clear_options()
+                            self.task_option_list.add_option(
+                                Option("[dim]No tasks found in project[/dim]", disabled=True)
+                            )
+                        self.task_name_label.update("[yellow]No Tasks Found[/yellow]")
+                        self.description_widget.update("[dim]This project has no Gradle tasks.[/dim]")
+
+            except Exception as e:
+                logging.error(f"Exception during task refresh: {e}", exc_info=True)
+                if self.task_option_list:
+                    self.task_option_list.clear_options()
+                    self.task_option_list.add_option(
+                        Option(f"[bold red]✗ Exception: {str(e)}[/bold red]", disabled=True)
+                    )
+                self.task_name_label.update("[bold red]Refresh Failed[/bold red]")
+                self.description_widget.update(f"[red]{str(e)}[/red]")
+            finally:
+                self.is_refreshing = False
+                logging.info("Task refresh completed")
+
+        # Start the background refresh
+        asyncio.create_task(refresh_in_background())
 
     async def action_run_task(self):
         """Action handler for 'r' key to run the selected task."""
