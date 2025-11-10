@@ -76,6 +76,12 @@ To get LazyGradle up and running on your local machine, follow these simple step
 
 ### Installation
 
+#### Via pipx
+Ahead of getting proper packaging figured out and determined, you can simply install this tool with
+
+`pipx install git+https://github.com/jacob-sabella/lazygradle.git`
+
+#### Manually
 1. Clone the repository
 
    ```sh
