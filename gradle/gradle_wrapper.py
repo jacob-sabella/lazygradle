@@ -2,6 +2,7 @@ import os
 import subprocess
 import logging
 import threading
+import stat
 from typing import Optional, Tuple, List, Callable
 
 from gradle.dto.gradle_error import GradleError
@@ -26,6 +27,89 @@ class GradleWrapper:
         self.logger.debug(
             f"GradleWrapper initialized for directory: {self.working_directory}"
         )
+
+    def check_gradlew_permissions(self) -> Tuple[bool, Optional[str]]:
+        """
+        Check if the gradlew file exists and has execute permissions.
+
+        Returns:
+        Tuple[bool, Optional[str]]: (has_execute_permission, error_message)
+            - (True, None) if gradlew exists and is executable
+            - (False, error_message) if there's an issue
+        """
+        gradlew_path = os.path.join(self.working_directory, "gradlew")
+
+        if not os.path.exists(gradlew_path):
+            return False, f"Gradle wrapper not found at {gradlew_path}"
+
+        if not os.path.isfile(gradlew_path):
+            return False, f"gradlew exists but is not a file"
+
+        # Check if file has execute permissions
+        file_stat = os.stat(gradlew_path)
+        is_executable = bool(file_stat.st_mode & stat.S_IXUSR)
+
+        if not is_executable:
+            return False, f"gradlew exists but does not have execute permissions"
+
+        return True, None
+
+    def can_fix_gradlew_permissions(self) -> Tuple[bool, str]:
+        """
+        Check if we have permissions to chmod the gradlew file.
+
+        Returns:
+        Tuple[bool, str]: (can_fix, message)
+            - (True, success_message) if we can chmod the file
+            - (False, error_message) if we cannot
+        """
+        gradlew_path = os.path.join(self.working_directory, "gradlew")
+
+        if not os.path.exists(gradlew_path):
+            return False, "gradlew file does not exist"
+
+        # Check if we own the file or have write access
+        try:
+            # Try to check if we can modify file permissions
+            file_stat = os.stat(gradlew_path)
+
+            # Check if we're the owner
+            if file_stat.st_uid == os.getuid():
+                return True, "You have permission to add execute permissions to gradlew"
+
+            # Check if we have write access to the file
+            if os.access(gradlew_path, os.W_OK):
+                return True, "You have write access to add execute permissions to gradlew"
+
+            return False, "You don't have permission to modify gradlew. You'll need to run: sudo chmod +x gradlew"
+        except Exception as e:
+            return False, f"Error checking permissions: {str(e)}"
+
+    def fix_gradlew_permissions(self) -> Tuple[bool, str]:
+        """
+        Add execute permissions to the gradlew file.
+
+        Returns:
+        Tuple[bool, str]: (success, message)
+        """
+        gradlew_path = os.path.join(self.working_directory, "gradlew")
+
+        try:
+            # Get current permissions
+            current_permissions = os.stat(gradlew_path).st_mode
+
+            # Add execute permissions for user, group, and others
+            new_permissions = current_permissions | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH
+
+            # Set the new permissions
+            os.chmod(gradlew_path, new_permissions)
+
+            self.logger.info(f"Successfully added execute permissions to {gradlew_path}")
+            return True, "Execute permissions added successfully"
+        except PermissionError:
+            return False, "Permission denied. You may need to run: sudo chmod +x gradlew"
+        except Exception as e:
+            return False, f"Failed to add execute permissions: {str(e)}"
 
     def list_all_tasks(self) -> TaskList:
         """
@@ -141,6 +225,14 @@ class GradleWrapper:
             output = result.stdout.decode().strip()
             self.logger.debug(f"Command output: {output}")
             return output, None
+        except PermissionError as e:
+            self.logger.error(f"Permission denied when executing gradlew: {str(e)}")
+            gradlew_path = os.path.join(self.working_directory, "gradlew")
+            return None, GradleError(
+                f"Permission denied: {gradlew_path} does not have execute permissions. "
+                f"Run 'chmod +x gradlew' in the project directory.",
+                -1
+            )
         except FileNotFoundError:
             self.logger.error(
                 "Gradle executable not found. Ensure it is installed and in PATH."
@@ -219,6 +311,14 @@ class GradleWrapper:
             self.logger.debug(f"Command completed successfully")
             return output, None
 
+        except PermissionError as e:
+            self.logger.error(f"Permission denied when executing gradlew: {str(e)}")
+            gradlew_path = os.path.join(self.working_directory, "gradlew")
+            return None, GradleError(
+                f"Permission denied: {gradlew_path} does not have execute permissions. "
+                f"Run 'chmod +x gradlew' in the project directory.",
+                -1
+            )
         except FileNotFoundError:
             self.logger.error(
                 "Gradle executable not found. Ensure it is installed and in PATH."

@@ -18,6 +18,8 @@ from textual.widgets import (
 from textual.widgets._option_list import Option
 
 from gradle.gradle_manager import GradleManager
+from gradle.gradle_wrapper import GradleWrapper
+from ui.gradlew_permission_modal import GradlewPermissionModal
 
 
 class ProjectChooserModal(ModalScreen):
@@ -153,14 +155,44 @@ class ProjectChooserModal(ModalScreen):
             if self.selected_path is not None and self.selected_path.exists():
                 gradle_files = list(self.selected_path.glob("*.gradle"))
                 if gradle_files:
-                    self.gradle_manager.add_project(str(self.selected_path))
-                    self.gradle_manager.select_project(str(self.selected_path))
-                    self.dismiss_modal()
+                    # Check gradlew permissions before adding the project
+                    await self.check_and_add_project(str(self.selected_path))
                 else:
                     self.refresh_static(
                         "No .gradle files found in the selected directory!"
                     )
         elif button.id == "cancel_button":
+            self.dismiss_modal()
+
+    async def check_and_add_project(self, project_path: str):
+        """Check gradlew permissions and add the project if valid."""
+        gradle_wrapper = GradleWrapper(project_path)
+        has_permission, error_message = gradle_wrapper.check_gradlew_permissions()
+
+        if not has_permission:
+            # Show permission modal to fix or inform the user
+            self.refresh_static(f"[yellow]{error_message}[/yellow]")
+
+            def on_permission_fixed(fixed: bool):
+                if fixed:
+                    # Permissions were fixed, now add the project
+                    self.gradle_manager.add_project(project_path)
+                    self.gradle_manager.select_project(project_path)
+                    self.dismiss_modal()
+                else:
+                    # User chose not to fix or couldn't fix
+                    self.refresh_static(
+                        "[red]Cannot add project: gradlew needs execute permissions[/red]"
+                    )
+
+            # Push the permission modal
+            self.app.push_screen(
+                GradlewPermissionModal(project_path), callback=on_permission_fixed
+            )
+        else:
+            # Permissions are fine, add the project normally
+            self.gradle_manager.add_project(project_path)
+            self.gradle_manager.select_project(project_path)
             self.dismiss_modal()
 
     def dismiss_modal(self):

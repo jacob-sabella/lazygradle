@@ -283,6 +283,17 @@ RichLog {
   align: center middle;
 }
 
+/* Gradlew permission modal (centered) */
+.gradlew-permission-modal {
+  width: 80vw;
+  max-width: 100;
+  height: auto;
+  background: $surface;
+  border: thick $error;
+  padding: 0;
+  align: center middle;
+}
+
 /* Modal tabs container */
 .modal-tabs {
   width: 100%;
