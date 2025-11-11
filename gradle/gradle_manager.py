@@ -48,9 +48,10 @@ class Project:
 
 
 class Config:
-    def __init__(self, projects: Optional[Dict[str, Project]] = None, currently_selected: Optional[str] = None):
+    def __init__(self, projects: Optional[Dict[str, Project]] = None, currently_selected: Optional[str] = None, theme: Optional[str] = None):
         self.projects = projects or {}
         self.currently_selected = currently_selected
+        self.theme = theme  # Store selected theme name
 
     def __getitem__(self, key: str):
         return self.projects[key]
@@ -96,7 +97,11 @@ class GradleManager:
                     )
                     for key, value in data.get("projects", {}).items()
                 }
-                return Config(projects=projects, currently_selected=data.get("currently_selected"))
+                return Config(
+                    projects=projects,
+                    currently_selected=data.get("currently_selected"),
+                    theme=data.get("theme")
+                )
         else:
             self.logger.debug(f"No config found, creating a new one at {self.CONFIG_FILE}")
             return Config()
@@ -115,6 +120,7 @@ class GradleManager:
                 for key, value in self.config.projects.items()
             },
             "currently_selected": self.config.currently_selected,
+            "theme": self.config.theme,
         }
         with open(self.CONFIG_FILE, "w") as f:
             json.dump(config_dict, f, indent=4)
@@ -197,6 +203,26 @@ class GradleManager:
         Optional[str]: The directory of the currently selected project, or None if no project is selected.
         """
         return self.config.currently_selected
+
+    def get_theme(self) -> Optional[str]:
+        """
+        Get the currently selected theme.
+
+        Returns:
+        Optional[str]: The name of the selected theme, or None if no theme is set.
+        """
+        return self.config.theme
+
+    def set_theme(self, theme_name: str) -> None:
+        """
+        Set the selected theme and save to config.
+
+        Parameters:
+        theme_name (str): The name of the theme to set.
+        """
+        self.logger.debug(f"Setting theme to: {theme_name}")
+        self.config.theme = theme_name
+        self._save_config()
 
     def update_project_tasks(self, project_dir: str) -> Optional[str]:
         """

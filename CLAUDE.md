@@ -43,15 +43,19 @@ python app.py
   - Tracks currently selected project
   - Provides `run_task()` and `run_task_with_parameters()` with streaming handlers
   - Project management: `add_project()`, `delete_project()`, `select_project()`
+  - Theme management: `get_theme()`, `set_theme()` for persisting UI theme preference
   - Auto-selects another project when deleting the currently selected one
   - Key classes: `Task`, `Project`, `Config`
 
 **UI Layer** (`ui/`):
 - `LazyGradleApp`: Main Textual app with tab system
-  - Keybindings: `d` (toggle dark mode), `p` (show project chooser)
+  - Keybindings: `p` (show project chooser), `Ctrl+P` (Textual's built-in theme selector)
   - Manages app-level state and modals
   - Enforces minimum terminal size (100x30) - displays warning message if terminal is too small
   - Listens for resize events and dynamically switches between warning and main content
+  - Uses Textual's built-in theme system (no custom dark mode toggle)
+  - Theme persistence: Selected theme is automatically saved to config and restored on startup
+  - Watches for theme changes via `watch_theme()` and saves them immediately
 
 - `SizeWarningWidget`: Warning display for undersized terminals
   - Shows current terminal dimensions vs minimum required
@@ -152,12 +156,19 @@ User configuration is stored at `~/.config/lazygradle/gradle_cache.json` with th
   "projects": {
     "/path/to/project": {
       "tasks": [{"name": "build", "description": "Assembles and tests this project"}],
-      "metadata": {"taskName": "metadata string"}
+      "metadata": {"taskName": "metadata string"},
+      "recent_tasks": []
     }
   },
-  "currently_selected": "/path/to/project"
+  "currently_selected": "/path/to/project",
+  "theme": "nord"
 }
 ```
+
+**Configuration fields:**
+- `projects`: Dictionary of Gradle projects with their tasks, metadata, and recent task history
+- `currently_selected`: Path to the currently active project
+- `theme`: Name of the selected Textual theme (e.g., "nord", "dracula", "gruvbox", etc.)
 
 ## Styling
 

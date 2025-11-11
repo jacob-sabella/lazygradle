@@ -17,7 +17,6 @@ class LazyGradleApp(App):
     MIN_HEIGHT = 30
 
     BINDINGS = [
-        Binding("d", "toggle_dark", "Toggle Dark Mode"),
         Binding("p", "show_project_chooser", "Show Project Chooser", priority=True),
     ]
 
@@ -33,6 +32,11 @@ class LazyGradleApp(App):
 
     def on_mount(self) -> None:
         """Check size and render appropriate content on mount."""
+        # Load and apply saved theme
+        saved_theme = self.gradle_manager.get_theme()
+        if saved_theme:
+            self.theme = saved_theme
+
         self._update_content()
 
     def on_resize(self) -> None:
@@ -82,3 +86,8 @@ class LazyGradleApp(App):
 
     def on_screen_dismissed(self):
         self.project_chooser_open = False
+
+    def watch_theme(self, theme_name: str) -> None:
+        """Watch for theme changes and save to config."""
+        # Save the new theme to config
+        self.gradle_manager.set_theme(theme_name)
