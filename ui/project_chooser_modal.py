@@ -16,6 +16,7 @@ from textual.widgets import (
     Input,
 )
 from textual.widgets._option_list import Option
+from textual import events
 
 from gradle.gradle_manager import GradleManager
 from gradle.gradle_wrapper import GradleWrapper
@@ -28,6 +29,8 @@ class ProjectChooserModal(ModalScreen):
         Binding("1", "switch_tab('switch-projects')", "Switch Projects"),
         Binding("2", "switch_tab('add-project')", "Add New Project"),
         Binding("/", "focus_search", "Search Projects"),
+        Binding("d", "delete_project", "Delete Project"),
+        Binding("enter", "select_project", "Select Project"),
     ]
 
     def __init__(self, gradle_manager: GradleManager, **kwargs):
@@ -36,6 +39,7 @@ class ProjectChooserModal(ModalScreen):
         self.selected_path = None
         self.all_projects = []
         self.filtered_projects = []
+        self.highlighted_project = None  # Track the highlighted project for deletion
 
     def compose(self) -> ComposeResult:
         with Container(classes="project-chooser-modal"):
@@ -66,11 +70,27 @@ class ProjectChooserModal(ModalScreen):
             )
 
         switch_content.mount(
+            Static("", classes="status-message"),
             Input(
                 placeholder="Search projects... (press / to focus)",
                 classes="project-search",
             ),
             project_option_list,
+            Horizontal(
+                Button(
+                    "✓ Select Project (Enter)",
+                    id="select_project_button",
+                    variant="success",
+                    classes="modal-button",
+                ),
+                Button(
+                    "🗑 Delete Project (d)",
+                    id="delete_project_button",
+                    variant="error",
+                    classes="modal-button",
+                ),
+                classes="modal-button-bar",
+            ),
         )
 
         add_content = self.query_one("#add-project-content", Vertical)
@@ -137,11 +157,31 @@ class ProjectChooserModal(ModalScreen):
             except:
                 pass
 
+    async def on_key(self, event: events.Key) -> None:
+        """Handle key presses, specifically Enter to select project."""
+        if event.key == "enter":
+            # Check if we're in the switch-projects tab
+            try:
+                tabbed_content = self.query_one("#project-tabs", TabbedContent)
+                if tabbed_content.active == "switch-projects":
+                    # Check if the OptionList has focus
+                    focused = self.app.focused
+                    if isinstance(focused, OptionList) and focused.id != "recent-tasks-list":
+                        # Prevent default OptionList behavior and call our select action
+                        event.prevent_default()
+                        await self.action_select_project()
+            except:
+                pass
+
     async def on_option_list_option_selected(self, event: OptionList.OptionSelected):
-        selected_project = event.option.id
-        if selected_project:
-            self.gradle_manager.select_project(selected_project)
-            self.dismiss_modal()
+        # Clicking a project only highlights it (doesn't select and dismiss)
+        # Track the highlighted project
+        if event.option_list.id != "recent-tasks-list":
+            self.highlighted_project = event.option.id
+
+    async def on_option_list_option_highlighted(self, event: OptionList.OptionHighlighted):
+        # Track the currently highlighted project
+        self.highlighted_project = event.option.id
 
     async def on_directory_tree_directory_selected(
         self, directory_tree: DirectoryTree.DirectorySelected
@@ -163,6 +203,10 @@ class ProjectChooserModal(ModalScreen):
                     )
         elif button.id == "cancel_button":
             self.dismiss_modal()
+        elif button.id == "select_project_button":
+            await self.action_select_project()
+        elif button.id == "delete_project_button":
+            await self.action_delete_project()
 
     async def check_and_add_project(self, project_path: str):
         """Check gradlew permissions and add the project if valid."""
@@ -201,3 +245,97 @@ class ProjectChooserModal(ModalScreen):
 
     def action_dismiss_modal(self):
         self.dismiss_modal()
+
+    async def action_select_project(self):
+        """Select the currently highlighted project and dismiss the modal."""
+        if not self.highlighted_project:
+            # Show message if no project is highlighted
+            try:
+                static_label = self.query_one("#switch-projects-content .status-message", Static)
+                static_label.update("[yellow]No project highlighted. Highlight a project and press Enter to select.[/yellow]")
+            except:
+                pass
+            return
+
+        # Select the highlighted project
+        self.gradle_manager.select_project(self.highlighted_project)
+        self.dismiss_modal()
+
+    async def action_delete_project(self):
+        """Delete the currently highlighted project."""
+        if not self.highlighted_project:
+            # Show message if no project is highlighted
+            try:
+                # Try to get the status message in the switch-projects tab
+                static_label = self.query_one("#switch-projects-content .status-message", Static)
+                static_label.update("[yellow]No project selected. Highlight a project and press 'd' to delete.[/yellow]")
+            except:
+                pass
+            return
+
+        project_to_delete = self.highlighted_project
+        project_name = os.path.basename(project_to_delete)
+
+        # Delete the project from the configuration
+        success = self.gradle_manager.delete_project(project_to_delete)
+
+        if success:
+            # Refresh the project list
+            self.all_projects = list(self.gradle_manager.list_all_projects().keys())
+
+            # Re-apply search filter if there was one
+            try:
+                search_input = self.query_one(".project-search", Input)
+                search_query = search_input.value.lower().strip()
+
+                if search_query:
+                    self.filtered_projects = [
+                        project
+                        for project in self.all_projects
+                        if search_query in project.lower()
+                        or search_query in os.path.basename(project).lower()
+                    ]
+                else:
+                    self.filtered_projects = self.all_projects
+            except:
+                self.filtered_projects = self.all_projects
+
+            # Update the project list UI
+            try:
+                option_list = self.query_one(OptionList)
+                option_list.clear_options()
+
+                if self.filtered_projects:
+                    for project_path in self.filtered_projects:
+                        project_name_display = os.path.basename(project_path)
+                        option_list.add_option(
+                            Option(
+                                f"[bold cyan]{project_name_display}[/bold cyan]\n[dim]{project_path}[/dim]",
+                                id=project_path,
+                            )
+                        )
+                else:
+                    option_list.add_option(
+                        Option("[dim]No projects found[/dim]", disabled=True)
+                    )
+
+                # Show success message
+                try:
+                    static_label = self.query_one("#switch-projects-content .status-message", Static)
+                    static_label.update(f"[green]Deleted project: {project_name}[/green]")
+                except:
+                    pass
+
+            except Exception as e:
+                import logging
+                logging.error(f"Error updating project list after deletion: {e}")
+
+            # Clear the highlighted project
+            self.highlighted_project = None
+        else:
+            # Show error message
+            try:
+                static_label = self.query_one("#switch-projects-content .status-message", Static)
+                static_label.update(f"[red]Failed to delete project: {project_name}[/red]")
+            except:
+                pass

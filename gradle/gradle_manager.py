@@ -156,6 +156,39 @@ class GradleManager:
         else:
             self.logger.debug(f"Project {project_dir} not found in config.")
 
+    def delete_project(self, project_dir: str) -> bool:
+        """
+        Delete a project from the configuration.
+
+        Parameters:
+        project_dir (str): The directory of the Gradle project to delete.
+
+        Returns:
+        bool: True if the project was deleted, False if it didn't exist.
+        """
+        project_dir = os.path.abspath(project_dir)
+        if project_dir in self.config.projects:
+            self.logger.debug(f"Deleting project: {project_dir}")
+            del self.config.projects[project_dir]
+
+            # If this was the currently selected project, clear the selection
+            if self.config.currently_selected == project_dir:
+                self.logger.debug(f"Clearing currently selected project")
+                # Select another project if available
+                remaining_projects = list(self.config.projects.keys())
+                if remaining_projects:
+                    self.config.currently_selected = remaining_projects[0]
+                    self.logger.debug(f"Auto-selecting first remaining project: {self.config.currently_selected}")
+                else:
+                    self.config.currently_selected = None
+                    self.logger.debug(f"No projects remaining, clearing selection")
+
+            self._save_config()
+            return True
+        else:
+            self.logger.debug(f"Project {project_dir} not found in config, cannot delete.")
+            return False
+
     def get_selected_project(self) -> Optional[str]:
         """
         Get the currently selected project.

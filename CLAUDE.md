@@ -42,6 +42,8 @@ python app.py
   - Caches task lists and metadata per project
   - Tracks currently selected project
   - Provides `run_task()` and `run_task_with_parameters()` with streaming handlers
+  - Project management: `add_project()`, `delete_project()`, `select_project()`
+  - Auto-selects another project when deleting the currently selected one
   - Key classes: `Task`, `Project`, `Config`
 
 **UI Layer** (`ui/`):
@@ -65,6 +67,7 @@ python app.py
 - `GradleProjectTaskViewer`: Core task viewer (left: task list, right: description + buttons)
   - Keybindings: `r` (run task), `R` (run task with parameters), `/` (search tasks), `F5` (refresh task list)
   - Uses `OptionList` for task selection
+  - Tasks are alphabetized by name (case-insensitive)
   - Runs tasks in background using `asyncio.create_task()` to keep UI responsive
   - Registers tasks with `TaskTracker` when executing
   - Streams task output to tracked tasks via callbacks using `asyncio.to_thread`
@@ -86,6 +89,13 @@ python app.py
   - Auto-updates display when tasks are updated or completed
 
 - `ProjectChooserModal`: Modal for selecting/adding Gradle projects
+  - Two tabs: "Switch Projects" and "Add New Project"
+  - Keybindings: `1` (switch to projects tab), `2` (add project tab), `/` (search projects), `Enter` (select highlighted project), `d` (delete highlighted project)
+  - **Selection behavior**: Clicking a project only highlights it; press Enter or click "Select Project" button to actually switch to it
+  - Enter key handling: Intercepts Enter key via `on_key()` to prevent OptionList default behavior and trigger custom selection
+  - Select button: Switches to the highlighted project and closes modal
+  - Delete button: Removes highlighted project from configuration
+  - Auto-selects another project if deleting the currently selected one
   - Validates gradlew permissions when adding new projects
   - Automatically shows `GradlewPermissionModal` if execute permissions are missing
 

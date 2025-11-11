@@ -44,7 +44,8 @@ class GradleProjectTaskViewer(Static):
             self.gradle_manager.update_project_tasks(selected_project)
 
             if project_info and project_info.tasks:
-                self.tasks = project_info.tasks
+                # Sort tasks alphabetically by name
+                self.tasks = sorted(project_info.tasks, key=lambda task: task.name.lower())
                 self.filtered_tasks = self.tasks  # Initially show all tasks
                 logging.info(f"Project info: {project_info}")
                 logging.info(f"Tasks: {self.tasks}")
@@ -228,7 +229,8 @@ class GradleProjectTaskViewer(Static):
                     project_info = self.gradle_manager.get_project_info(selected_project)
 
                     if project_info and project_info.tasks:
-                        self.tasks = project_info.tasks
+                        # Sort tasks alphabetically by name
+                        self.tasks = sorted(project_info.tasks, key=lambda task: task.name.lower())
 
                         # Re-apply search filter if there was one
                         if search_query:
