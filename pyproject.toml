@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "lazygradle"
 version = "1.1.1"
-description = "A beautiful TUI for managing and running your Gradle tasks"
+description = "A TUI for managing and running your Gradle tasks"
 readme = "README.md"
 requires-python = ">=3.13"
 authors = [
