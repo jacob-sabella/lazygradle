@@ -37,7 +37,8 @@ class LazyGradleApp(App):
         if saved_theme:
             self.theme = saved_theme
 
-        self._update_content()
+        # Use call_after_refresh to ensure DOM is ready before updating content
+        self.call_after_refresh(self._update_content)
 
     def on_resize(self) -> None:
         """Check size and update content when terminal is resized."""
@@ -45,7 +46,12 @@ class LazyGradleApp(App):
 
     def _update_content(self) -> None:
         """Update the main content based on terminal size."""
-        container = self.query_one("#main-container", Container)
+        try:
+            container = self.query_one("#main-container", Container)
+        except:
+            # DOM not ready yet, skip update
+            return
+
         container.remove_children()
 
         # Get terminal size
@@ -73,14 +79,24 @@ class LazyGradleApp(App):
         if not self.project_chooser_open:
             self.project_chooser_open = True
 
-            def on_dismiss(result=None):
+            def on_dismiss(should_refresh=None):
+                import logging
                 self.project_chooser_open = False
-                # Only refresh if LazyGradleWidget exists
-                try:
-                    widget = self.query_one(LazyGradleWidget)
-                    widget.refresh_current_tab()
-                except:
-                    pass
+
+                if should_refresh:
+                    logging.info("Project chooser dismissed, refreshing current tab")
+                    # Refresh the LazyGradleWidget to show updated project
+                    try:
+                        widget = self.query_one(LazyGradleWidget)
+                        if widget:
+                            logging.info("Found LazyGradleWidget, calling refresh_current_tab()")
+                            widget.refresh_current_tab()
+                        else:
+                            logging.warning("LazyGradleWidget not found")
+                    except Exception as e:
+                        logging.error(f"Error refreshing after project chooser: {e}", exc_info=True)
+                else:
+                    logging.info("Project chooser dismissed without changes")
 
             self.push_screen(ProjectChooserModal(self.gradle_manager), callback=on_dismiss)
 

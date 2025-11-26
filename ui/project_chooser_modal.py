@@ -123,8 +123,11 @@ class ProjectChooserModal(ModalScreen):
             pass
 
     def refresh_static(self, message: str):
+        """Update the status message in the add-project tab."""
         try:
-            static_label = self.query_one(".status-message", Static)
+            # Query specifically within the add-project-content to avoid TooManyMatches
+            add_content = self.query_one("#add-project-content", Vertical)
+            static_label = add_content.query_one(".status-message", Static)
             static_label.update(message)
         except NoMatches:
             pass
@@ -202,7 +205,7 @@ class ProjectChooserModal(ModalScreen):
                         "No .gradle files found in the selected directory!"
                     )
         elif button.id == "cancel_button":
-            self.dismiss_modal()
+            self.dismiss_modal(should_refresh=False)
         elif button.id == "select_project_button":
             await self.action_select_project()
         elif button.id == "delete_project_button":
@@ -239,12 +242,12 @@ class ProjectChooserModal(ModalScreen):
             self.gradle_manager.select_project(project_path)
             self.dismiss_modal()
 
-    def dismiss_modal(self):
+    def dismiss_modal(self, should_refresh: bool = True):
         self.app.project_chooser_open = False
-        self.dismiss()
+        self.dismiss(should_refresh)
 
     def action_dismiss_modal(self):
-        self.dismiss_modal()
+        self.dismiss_modal(should_refresh=False)
 
     async def action_select_project(self):
         """Select the currently highlighted project and dismiss the modal."""

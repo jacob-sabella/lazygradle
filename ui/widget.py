@@ -24,6 +24,7 @@ class LazyGradleWidget(Widget):
         self.gradle_manager = gradle_manager
         self.task_tracker = TaskTracker()
         self.task_manager_widget = None
+        self.current_tab_id = None  # Track which tab is currently mounted
 
     def compose(self) -> ComposeResult:
         # Create Tabs container with numbered labels
@@ -47,11 +48,24 @@ class LazyGradleWidget(Widget):
         # Use call_after_refresh to ensure DOM is ready
         self.call_after_refresh(self.switch_to_tab, "current-setup")
 
-    def switch_to_tab(self, tab_id: str) -> None:
-        """Switch content based on the selected tab."""
+    def switch_to_tab(self, tab_id: str, force_refresh: bool = False) -> None:
+        """Switch content based on the selected tab.
+
+        Args:
+            tab_id: The ID of the tab to switch to
+            force_refresh: If True, force a remount even if already on this tab
+        """
         import logging
+
+        # Skip remounting if we're already on this tab and not forcing refresh
+        if self.current_tab_id == tab_id and not force_refresh:
+            logging.info(f"Already on tab {tab_id}, skipping remount")
+            return
+
+        logging.info(f"Switching to tab {tab_id} (force_refresh={force_refresh})")
         tab_content_container = self.query_one("#tab-content-container")
         tab_content_container.remove_children()
+        self.current_tab_id = tab_id
 
         if tab_id == "current-setup":
             tab_content_container.mount(
@@ -76,10 +90,8 @@ class LazyGradleWidget(Widget):
         """Programmatically activate the task manager tab and optionally select a task."""
         tabs = self.query_one("#gradle-tabs", Tabs)
         tabs.active = "task-manager-tab"
-        # Always manually call switch_to_tab to ensure we get a fresh widget
-        # This might get called twice (once here, once from event), but that's okay
-        # because we remove children first, so the second call just ensures it's ready
-        self.switch_to_tab("task-manager-tab")
+        # Force a refresh to ensure we get a fresh widget when launching a task
+        self.switch_to_tab("task-manager-tab", force_refresh=True)
 
         # Select the specific task if provided
         if task_id and self.task_manager_widget:
@@ -96,4 +108,4 @@ class LazyGradleWidget(Widget):
         """Refresh the current tab by re-rendering its content."""
         tabs = self.query_one("#gradle-tabs", Tabs)
         if tabs.active_tab:
-            self.switch_to_tab(tabs.active_tab.id)
+            self.switch_to_tab(tabs.active_tab.id, force_refresh=True)

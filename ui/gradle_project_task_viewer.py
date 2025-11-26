@@ -40,17 +40,11 @@ class GradleProjectTaskViewer(Static):
     def compose(self) -> ComposeResult:
         selected_project = self.gradle_manager.get_selected_project()
         if selected_project:
-            project_info = self.gradle_manager.get_project_info(selected_project)
-            self.gradle_manager.update_project_tasks(selected_project)
-
-            if project_info and project_info.tasks:
-                # Sort tasks alphabetically by name
-                self.tasks = sorted(project_info.tasks, key=lambda task: task.name.lower())
-                self.filtered_tasks = self.tasks  # Initially show all tasks
-                logging.info(f"Project info: {project_info}")
-                logging.info(f"Tasks: {self.tasks}")
-            else:
-                logging.error(f"No tasks found for project: {selected_project}")
+            # Always start with empty task list - will refresh on mount
+            # This ensures users see the refresh state on startup
+            logging.info(f"Composing task viewer for project: {selected_project}, will refresh on mount")
+            self.tasks = []
+            self.filtered_tasks = []
 
             yield Horizontal(
                 # Left panel: Task list with search
@@ -79,17 +73,28 @@ class GradleProjectTaskViewer(Static):
             yield Label("No project selected.", classes="no-project")
 
     def on_mount(self) -> None:
-        """Set focus on the task list when mounted."""
-        if self.task_option_list and len(self.filtered_tasks) > 0:
-            self.task_option_list.focus()
+        """Set focus on the task list when mounted and trigger background refresh."""
+        # Always trigger a background refresh on mount to ensure fresh data
+        selected_project = self.gradle_manager.get_selected_project()
+        if selected_project:
+            logging.info("Triggering automatic background refresh on startup")
+            # Schedule the refresh to run after the UI is fully mounted
+            self.call_after_refresh(lambda: asyncio.create_task(self.action_refresh_tasks()))
 
     def render_task_list(self):
         """Render the task list on the left."""
         self.task_option_list = OptionList(id="task-option-list", classes="task-option-list")
         logging.info(f"Rendering {len(self.filtered_tasks)} tasks to option list")
-        for task in self.filtered_tasks:
-            self.task_option_list.add_option(Option(task.name))
-            logging.debug(f"Added task: {task.name}")
+
+        if len(self.filtered_tasks) == 0:
+            # Show loading message if no tasks (will be replaced after background refresh)
+            self.task_option_list.add_option(
+                Option("[dim]Loading tasks...[/dim]", disabled=True)
+            )
+        else:
+            for task in self.filtered_tasks:
+                self.task_option_list.add_option(Option(task.name))
+                logging.debug(f"Added task: {task.name}")
         return self.task_option_list
 
     @staticmethod
@@ -366,15 +371,15 @@ class GradleProjectTaskViewer(Static):
         if self.selected_task:
             logging.info(f"Running task: {self.selected_task.name}")
 
-            # Switch to the output tab first
-            self.parent_widget.activate_output_tab()
-
-            # Give the event loop time to process mount events
-            await asyncio.sleep(0.1)
-
             # Create a tracked task
             tracked_task = self.task_tracker.create_task(self.selected_task.name, [])
             task_id = tracked_task.task_id
+
+            # Switch to the output tab and auto-select this task
+            self.parent_widget.activate_output_tab(task_id=task_id)
+
+            # Give the event loop time to process mount events
+            await asyncio.sleep(0.1)
 
             # Get the task manager widget
             task_manager = self.parent_widget.task_manager_widget
@@ -449,15 +454,15 @@ class GradleProjectTaskViewer(Static):
         """Internal method to run task with parameters and stream to output tab."""
         logging.info(f"_run_task_with_params_impl called with parameters: {parameters}")
 
-        # Switch to the output tab first
-        self.parent_widget.activate_output_tab()
-
-        # Give the event loop time to process mount events
-        await asyncio.sleep(0.1)
-
         # Create a tracked task
         tracked_task = self.task_tracker.create_task(self.selected_task.name, parameters)
         task_id = tracked_task.task_id
+
+        # Switch to the output tab and auto-select this task
+        self.parent_widget.activate_output_tab(task_id=task_id)
+
+        # Give the event loop time to process mount events
+        await asyncio.sleep(0.1)
 
         # Get the task manager widget
         task_manager = self.parent_widget.task_manager_widget
