@@ -40,10 +40,6 @@ class LazyGradleApp(App):
         # Use call_after_refresh to ensure DOM is ready before updating content
         self.call_after_refresh(self._update_content)
 
-    def on_resize(self) -> None:
-        """Check size and update content when terminal is resized."""
-        self._update_content()
-
     def _update_content(self) -> None:
         """Update the main content based on terminal size."""
         try:
