@@ -24,12 +24,18 @@ class TrackedTask:
     end_time: Optional[datetime] = None
     output_lines: List[str] = field(default_factory=list)
     asyncio_task: Optional[asyncio.Task] = None  # Reference to running asyncio task
+    config_label: Optional[str] = None  # Label of saved config if used
 
     def get_display_name(self) -> str:
         """Get formatted display name for the task."""
+        base_name = self.task_name
         if self.parameters:
-            return f"{self.task_name} {' '.join(self.parameters)}"
-        return self.task_name
+            base_name = f"{self.task_name} {' '.join(self.parameters)}"
+
+        # Add config label if present
+        if self.config_label:
+            return f"{base_name} [{self.config_label}]"
+        return base_name
 
     def get_duration(self) -> str:
         """Get formatted duration string."""
@@ -69,7 +75,7 @@ class TaskTracker:
             except Exception as e:
                 logging.error(f"Error in update callback: {e}")
 
-    def create_task(self, task_name: str, parameters: List[str] = None) -> TrackedTask:
+    def create_task(self, task_name: str, parameters: List[str] = None, config_label: str = None) -> TrackedTask:
         """Create a new tracked task and add it to the list."""
         self._task_counter += 1
         task_id = f"task_{self._task_counter}_{int(datetime.now().timestamp())}"
@@ -79,7 +85,8 @@ class TaskTracker:
             task_name=task_name,
             parameters=parameters or [],
             status=TaskStatus.RUNNING,
-            start_time=datetime.now()
+            start_time=datetime.now(),
+            config_label=config_label
         )
 
         # Add to beginning of list (most recent first)

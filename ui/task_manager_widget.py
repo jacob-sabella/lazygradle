@@ -14,6 +14,7 @@ class TaskManagerWidget(Widget):
 
     BINDINGS = [
         Binding("c", "cancel_task", "Cancel Task"),
+        Binding("C", "cancel_task", "Cancel Task"),
     ]
 
     def __init__(self, task_tracker: TaskTracker, **kwargs):
@@ -43,7 +44,7 @@ class TaskManagerWidget(Widget):
                     self.output_log = RichLog(
                         id="task-manager-log",
                         highlight=True,
-                        markup=True,
+                        markup=False,
                         wrap=True,
                         auto_scroll=True,
                         classes="task-manager-output"
@@ -143,14 +144,14 @@ class TaskManagerWidget(Widget):
         self.output_log.clear()
 
         # Header
-        self.output_log.write(f"[bold cyan]Task:[/bold cyan] {task.get_display_name()}")
-        self.output_log.write(f"[bold]Started:[/bold] {task.start_time.strftime('%Y-%m-%d %H:%M:%S')}")
+        self.output_log.write(f"Task: {task.get_display_name()}")
+        self.output_log.write(f"Started: {task.start_time.strftime('%Y-%m-%d %H:%M:%S')}")
 
         if task.end_time:
-            self.output_log.write(f"[bold]Ended:[/bold] {task.end_time.strftime('%Y-%m-%d %H:%M:%S')}")
+            self.output_log.write(f"Ended: {task.end_time.strftime('%Y-%m-%d %H:%M:%S')}")
 
-        self.output_log.write(f"[bold]Duration:[/bold] {task.get_duration()}")
-        self.output_log.write(f"[bold]Status:[/bold] {self._format_status(task.status)}")
+        self.output_log.write(f"Duration: {task.get_duration()}")
+        self.output_log.write(f"Status: {task.status.value.upper()}")
         self.output_log.write("=" * 80)
         self.output_log.write("")
 
@@ -165,17 +166,6 @@ class TaskManagerWidget(Widget):
         except Exception as e:
             logging.debug(f"Could not update title: {e}")
 
-    def _format_status(self, status: TaskStatus) -> str:
-        """Format status for display."""
-        if status == TaskStatus.RUNNING:
-            return "[bold cyan]Running[/bold cyan]"
-        elif status == TaskStatus.COMPLETED:
-            return "[bold green]Completed[/bold green]"
-        elif status == TaskStatus.FAILED:
-            return "[bold red]Failed[/bold red]"
-        elif status == TaskStatus.CANCELLED:
-            return "[bold yellow]Cancelled[/bold yellow]"
-        return str(status.value)
 
     def on_option_list_option_selected(self, event: OptionList.OptionSelected):
         """Handle task selection."""
@@ -199,7 +189,7 @@ class TaskManagerWidget(Widget):
             # Clear output
             if self.output_log:
                 self.output_log.clear()
-                self.output_log.write("[dim]Select a task to view its output[/dim]")
+                self.output_log.write("Select a task to view its output")
 
             try:
                 title = self.query_one("#task-output-title", Static)

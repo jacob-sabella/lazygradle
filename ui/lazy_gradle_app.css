@@ -245,7 +245,8 @@ RichLog {
 .task-actions {
   width: 100%;
   height: auto;
-  padding: 0 1;
+  min-height: 3;
+  padding: 1 1;
   background: $panel;
   border-top: solid $primary;
   align-horizontal: center;
@@ -253,6 +254,8 @@ RichLog {
 
 /* Individual action buttons */
 .action-button {
+  width: auto;
+  height: auto;
   min-width: 20;
   margin: 0 1;
 }
@@ -276,11 +279,13 @@ RichLog {
 /* Run with parameters modal (centered) */
 .run-params-modal {
   width: 100vw;
+  max-height: 95vh;
   height: auto;
   background: $surface;
   border: thick $primary;
   padding: 0;
   align: center middle;
+  overflow: hidden;
 }
 
 /* Gradlew permission modal (centered) */
@@ -410,28 +415,35 @@ RichLog {
 }
 
 .run-params-modal .status-message {
-  padding: 0 2;
+  padding: 1 2 0 2;
   height: auto;
+}
+
+.run-params-modal .example-message {
+  padding: 1 2 1 2;
 }
 
 .run-params-modal .modal-content {
   padding: 1;
-  height: auto;
+  height: 1fr;
+  max-height: 80vh;
   width: 100%;
+  overflow-y: auto;
 }
 
 .run-params-modal .modal-button-bar {
-  height: 20vw;
+  height: auto;
+  min-height: 5;
   width: 100%;
   padding: 1 2;
   align-horizontal: center;
+  background: $panel;
 }
 
 .run-params-modal .modal-button {
-  width: 30vw;
-  height: 10vh;
+  width: auto;
+  height: 3;
   min-width: 20;
-  max-width: 30;
   margin: 0 1;
 }
 
@@ -552,4 +564,61 @@ RichLog {
   border: thick $error;
   width: auto;
   height: auto;
+}
+
+/* Saved Executions Section */
+.saved-configs-title {
+  margin-top: 1;
+  padding-top: 1;
+  border-top: solid $primary;
+}
+
+.saved-executions-list {
+  height: 8;
+  border: solid $primary;
+  margin: 1 0;
+}
+
+.saved-execution-actions {
+  height: auto;
+  padding-bottom: 1;
+  align: center middle;
+}
+
+.small-action-button {
+  min-width: 12;
+  margin: 0 1;
+}
+
+/* Enhanced Run Params Modal */
+.env-var-textarea {
+  height: 6;
+  max-height: 12;
+  border: solid $accent;
+  margin: 1 0;
+}
+
+.small-button {
+  min-width: 18;
+  margin: 0 1;
+}
+
+.save-section {
+  border-top: solid $primary;
+  margin-top: 1;
+  padding-top: 1;
+}
+
+/* Confirmation Modal */
+.confirmation-modal {
+  align: center middle;
+  width: 60;
+  height: 15;
+  background: $surface;
+  border: thick $error;
+}
+
+.modal-message {
+  padding: 2;
+  text-align: center;
 }

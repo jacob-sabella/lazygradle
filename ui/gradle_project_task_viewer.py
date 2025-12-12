@@ -16,6 +16,7 @@ from textual.widgets import Static, Label, OptionList, Button, Input
 from textual.widgets._option_list import Option
 
 from ui.run_task_with_parameters_modal import RunTaskWithParametersModal
+from ui.confirmation_modal import ConfirmationModal
 from gradle.gradle_manager import GradleManager
 from ui.task_tracker import TaskTracker
 
@@ -41,6 +42,7 @@ class GradleProjectTaskViewer(Static):
 
     BINDINGS = [
         Binding("r", "run_task", "Run Task"),
+        Binding("enter", "run_task", "Run Task"),
         Binding("R", "run_task_with_parameters", "Run Task with Parameters"),
         Binding("/", "focus_search", "Search Tasks"),
         Binding("f5", "refresh_tasks", "Refresh Tasks")
@@ -68,6 +70,7 @@ class GradleProjectTaskViewer(Static):
         self.description_widget = Static("Select a task from the list to view its description.",
                                          classes="task-description-text")
         self.recent_tasks_list = None
+        self.saved_executions_list = None
         self.running_task = None
         self.is_refreshing = False
 
@@ -103,6 +106,9 @@ class GradleProjectTaskViewer(Static):
                         classes="task-details-scroll"
                     ),
                     self.render_buttons(),
+                    Static("Saved Configurations", classes="section-title saved-configs-title"),
+                    self.render_saved_executions(),
+                    self.render_saved_execution_buttons(),
                     Static("Recently Run Tasks", classes="section-title recent-tasks-title"),
                     self.render_recent_tasks(),
                     classes="task-details-panel"
@@ -161,6 +167,108 @@ class GradleProjectTaskViewer(Static):
             Button("⚙ Run with Params (R)", id="run_task_with_params_button", variant="primary", classes="action-button"),
             classes="task-actions"
         )
+
+    def render_saved_executions(self):
+        """Create and populate the saved execution configurations widget.
+
+        Builds an OptionList showing saved configurations for the currently selected task.
+
+        Returns:
+            OptionList widget populated with saved configurations or a placeholder message.
+        """
+        self.saved_executions_list = OptionList(
+            id="saved-executions-list",
+            classes="saved-executions-list"
+        )
+
+        if self.selected_task:
+            saved_configs = self.gradle_manager.get_saved_executions(self.selected_task.name)
+            if saved_configs:
+                for config in saved_configs:
+                    label = config.get("label", "Unnamed")
+                    params = config.get("parameters", [])
+                    env_vars = config.get("env_vars", {})
+
+                    # Create display string
+                    display = f"▶ {label}"
+                    if params:
+                        params_preview = " ".join(params)
+                        if len(params_preview) > 30:
+                            params_preview = params_preview[:27] + "..."
+                        display += f" [dim]({params_preview})[/dim]"
+                    if env_vars:
+                        env_count = len(env_vars)
+                        display += f" [dim]{env_count} env var{'s' if env_count != 1 else ''}[/dim]"
+
+                    self.saved_executions_list.add_option(
+                        Option(display, id=config["id"])
+                    )
+            else:
+                self.saved_executions_list.add_option(
+                    Option("[dim]No saved configurations[/dim]",
+                           id="no_saved", disabled=True)
+                )
+        else:
+            self.saved_executions_list.add_option(
+                Option("[dim]Select a task first[/dim]",
+                       id="no_task", disabled=True)
+            )
+
+        return self.saved_executions_list
+
+    def render_saved_execution_buttons(self):
+        """Render management buttons for saved executions.
+
+        Returns:
+            Horizontal container with buttons for running, editing, and deleting configurations.
+        """
+        return Horizontal(
+            Button("▶ Run", id="run_saved_config_button",
+                   variant="success", classes="small-action-button"),
+            Button("✎ Edit", id="edit_saved_config_button",
+                   variant="default", classes="small-action-button"),
+            Button("🗑 Delete", id="delete_saved_config_button",
+                   variant="warning", classes="small-action-button"),
+            classes="saved-execution-actions"
+        )
+
+    def update_saved_executions_list(self):
+        """Refresh the saved executions list for the current task.
+
+        Clears and repopulates the saved executions OptionList based on the currently
+        selected task. If no task is selected or no configurations exist, displays
+        appropriate placeholder messages.
+        """
+        if not self.saved_executions_list or not self.selected_task:
+            return
+
+        self.saved_executions_list.clear_options()
+        saved_configs = self.gradle_manager.get_saved_executions(self.selected_task.name)
+
+        if saved_configs:
+            for config in saved_configs:
+                label = config.get("label", "Unnamed")
+                params = config.get("parameters", [])
+                env_vars = config.get("env_vars", {})
+
+                display = f"▶ {label}"
+                if params:
+                    params_preview = " ".join(params)
+                    if len(params_preview) > 30:
+                        params_preview = params_preview[:27] + "..."
+                    display += f" [dim]({params_preview})[/dim]"
+                if env_vars:
+                    env_count = len(env_vars)
+                    display += f" [dim]{env_count} env var{'s' if env_count != 1 else ''}[/dim]"
+
+                self.saved_executions_list.add_option(
+                    Option(display, id=config["id"])
+                )
+        else:
+            self.saved_executions_list.add_option(
+                Option("[dim]No saved configurations[/dim]",
+                       id="no_saved", disabled=True)
+            )
 
     def render_recent_tasks(self):
         """Create and populate the recent tasks widget.
@@ -389,16 +497,30 @@ class GradleProjectTaskViewer(Static):
             await self.run_task()
         elif event.button.id == "run_task_with_params_button" and self.selected_task:
             await self.run_task_with_parameters()
+        elif event.button.id == "run_saved_config_button":
+            await self.action_run_saved_config()
+        elif event.button.id == "save_new_config_button" and self.selected_task:
+            await self.action_save_new_config()
+        elif event.button.id == "edit_saved_config_button":
+            await self.action_edit_saved_config()
+        elif event.button.id == "delete_saved_config_button":
+            await self.action_delete_saved_config()
 
     async def on_option_list_option_selected(self, event: OptionList.OptionSelected):
-        """Handle option selection from task list or recent tasks list.
+        """Handle option selection from task list, saved executions, or recent tasks list.
 
         For main task list selections, updates the task description panel.
+        For saved executions selections, runs the saved configuration.
         For recent task selections, re-executes the task with its original parameters.
 
         Args:
             event: Option selection event containing the selected option and source list.
         """
+        # Handle saved executions list - just select, don't run
+        if event.option_list.id == "saved-executions-list":
+            # Selection is handled automatically, no action needed
+            return
+
         if event.option_list.id == "recent-tasks-list":
             task_id = event.option.id
             if task_id and task_id.startswith("recent_"):
@@ -458,6 +580,9 @@ class GradleProjectTaskViewer(Static):
 
         description_text = task.description if task.description else "[dim]No description available[/dim]"
         self.description_widget.update(description_text)
+
+        # Update saved executions list for this task
+        self.update_saved_executions_list()
 
     def _task_sort_key(self, task):
         """Generate sort key for task ordering with natural sorting.
@@ -542,6 +667,7 @@ class GradleProjectTaskViewer(Static):
 
             logging.debug("Creating background task")
             self.running_task = asyncio.create_task(execute_task())
+            self.task_tracker.set_asyncio_task(task_id, self.running_task)
             logging.debug("Background task created, UI is now responsive")
 
     async def run_task_with_parameters(self):
@@ -553,11 +679,34 @@ class GradleProjectTaskViewer(Static):
         if self.selected_task:
             logging.info(f"Running task with parameters: {self.selected_task.name}")
 
-            async def execute_task(parameters):
-                logging.debug(f"Modal callback received parameters: {parameters}")
-                if parameters is not None:
-                    logging.info(f"Starting task execution with parameters: {parameters}")
-                    await self._run_task_with_params_impl(parameters)
+            async def execute_task(result):
+                logging.debug(f"Modal callback received result: {result}")
+                if result is not None:
+                    param_list, env_vars, save_config, execution_id = result
+
+                    # Save configuration if requested
+                    if save_config:
+                        if execution_id:
+                            # Update existing configuration
+                            self.gradle_manager.update_saved_execution(
+                                execution_id,
+                                save_config["label"],
+                                save_config["parameters"],
+                                save_config["env_vars"]
+                            )
+                        else:
+                            # Create new configuration
+                            self.gradle_manager.save_execution_config(
+                                save_config["task_name"],
+                                save_config["label"],
+                                save_config["parameters"],
+                                save_config["env_vars"]
+                            )
+                        self.update_saved_executions_list()
+
+                    # Run task
+                    logging.info(f"Starting task execution with params: {param_list}, env: {env_vars}")
+                    await self._run_task_with_params_impl(param_list, env_vars)
                 else:
                     logging.debug("User cancelled parameter entry")
 
@@ -566,8 +715,8 @@ class GradleProjectTaskViewer(Static):
                 callback=execute_task
             )
 
-    async def _run_task_with_params_impl(self, parameters):
-        """Execute the selected Gradle task with parameters.
+    async def _run_task_with_params_impl(self, parameters, env_vars=None, config_label=None):
+        """Execute the selected Gradle task with parameters and optional environment variables.
 
         Internal implementation for running tasks with parameters. Creates a tracked
         task execution, switches to the output tab, and runs the Gradle task in a
@@ -575,10 +724,12 @@ class GradleProjectTaskViewer(Static):
 
         Args:
             parameters: List of command-line parameters to pass to the Gradle task.
+            env_vars: Optional dictionary of environment variables to set.
+            config_label: Optional label of the saved configuration being used.
         """
-        logging.info(f"Running task with parameters: {parameters}")
+        logging.info(f"Running task with parameters: {parameters}, env_vars: {env_vars}, config_label: {config_label}")
 
-        tracked_task = self.task_tracker.create_task(self.selected_task.name, parameters)
+        tracked_task = self.task_tracker.create_task(self.selected_task.name, parameters, config_label)
         task_id = tracked_task.task_id
 
         self.parent_widget.activate_output_tab(task_id=task_id)
@@ -613,7 +764,8 @@ class GradleProjectTaskViewer(Static):
                     self.selected_task.name,
                     parameters,
                     on_stdout=on_stdout,
-                    on_stderr=on_stderr
+                    on_stderr=on_stderr,
+                    env_vars=env_vars
                 )
                 logging.info("Task with parameters execution completed")
                 loop.call_soon_threadsafe(self.task_tracker.mark_completed, task_id)
@@ -625,4 +777,202 @@ class GradleProjectTaskViewer(Static):
 
         logging.debug("Creating background task")
         self.running_task = asyncio.create_task(execute_task())
+        self.task_tracker.set_asyncio_task(task_id, self.running_task)
         logging.debug("Background task created, UI is now responsive")
+
+    async def action_save_new_config(self):
+        """Open modal to save a new execution configuration."""
+        if not self.selected_task:
+            return
+
+        async def on_modal_dismiss(result):
+            if result:
+                param_list, env_vars, save_config, _ = result
+                if save_config:
+                    # Save the configuration
+                    self.gradle_manager.save_execution_config(
+                        save_config["task_name"],
+                        save_config["label"],
+                        save_config["parameters"],
+                        save_config["env_vars"]
+                    )
+                    # Refresh the saved executions list
+                    self.update_saved_executions_list()
+                    logging.info(f"Saved new configuration: {save_config['label']}")
+
+                # Also run the task if user entered parameters or env vars
+                if param_list or env_vars:
+                    await self._run_task_with_params_impl(param_list, env_vars)
+
+        await self.app.push_screen(
+            RunTaskWithParametersModal(self.selected_task, self.gradle_manager),
+            callback=on_modal_dismiss
+        )
+
+    async def action_run_saved_config(self):
+        """Run the selected saved configuration."""
+        if not self.saved_executions_list:
+            return
+
+        # Get highlighted config from the list
+        try:
+            highlighted_option = self.saved_executions_list.get_option_at_index(
+                self.saved_executions_list.highlighted
+            )
+        except Exception as e:
+            logging.error(f"Failed to get highlighted option: {e}")
+            return
+
+        if not highlighted_option or highlighted_option.id.startswith("no_"):
+            logging.info("No valid saved config selected to run")
+            return
+
+        config_id = highlighted_option.id
+        await self._run_saved_execution(config_id)
+
+    async def action_edit_saved_config(self):
+        """Edit the selected saved configuration."""
+        if not self.saved_executions_list:
+            return
+
+        # Get highlighted config from the list
+        try:
+            highlighted_option = self.saved_executions_list.get_option_at_index(
+                self.saved_executions_list.highlighted
+            )
+        except Exception as e:
+            logging.error(f"Failed to get highlighted option: {e}")
+            return
+
+        if not highlighted_option or highlighted_option.id.startswith("no_"):
+            logging.info("No valid saved config selected to edit")
+            return
+
+        config_id = highlighted_option.id
+
+        # Get the selected project
+        project_dir = self.gradle_manager.get_selected_project()
+        if not project_dir or project_dir not in self.gradle_manager.config.projects:
+            logging.error("No project selected")
+            return
+
+        # Get config by ID
+        all_saved = self.gradle_manager.config.projects[project_dir].saved_executions
+        config = next((c for c in all_saved if c["id"] == config_id), None)
+
+        if not config:
+            return
+
+        # Get the task for this config
+        task_name = config.get("task_name")
+        if task_name and self.tasks:
+            task = next((t for t in self.tasks if t.name == task_name), None)
+        else:
+            task = self.selected_task
+
+        async def on_modal_dismiss(result):
+            if result:
+                param_list, env_vars, save_config, execution_id = result
+                if save_config and execution_id:
+                    # Update existing configuration
+                    self.gradle_manager.update_saved_execution(
+                        execution_id,
+                        save_config["label"],
+                        save_config["parameters"],
+                        save_config["env_vars"]
+                    )
+                    self.update_saved_executions_list()
+                    logging.info(f"Updated configuration: {save_config['label']}")
+
+                # Run if requested
+                if param_list is not None or env_vars is not None:
+                    await self._run_task_with_params_impl(param_list or [], env_vars)
+
+        await self.app.push_screen(
+            RunTaskWithParametersModal(
+                task,
+                self.gradle_manager,
+                saved_execution=config
+            ),
+            callback=on_modal_dismiss
+        )
+
+    async def action_delete_saved_config(self):
+        """Delete the selected saved configuration."""
+        if not self.saved_executions_list:
+            return
+
+        try:
+            highlighted_option = self.saved_executions_list.get_option_at_index(
+                self.saved_executions_list.highlighted
+            )
+        except Exception as e:
+            logging.error(f"Failed to get highlighted option: {e}")
+            return
+
+        if not highlighted_option or highlighted_option.id.startswith("no_"):
+            return
+
+        config_id = highlighted_option.id
+
+        # Show confirmation modal
+        async def on_confirm(confirmed):
+            if confirmed:
+                if self.gradle_manager.delete_saved_execution(config_id):
+                    self.update_saved_executions_list()
+                    logging.info(f"Deleted saved configuration: {config_id}")
+
+        await self.app.push_screen(
+            ConfirmationModal("Delete this saved configuration?"),
+            callback=on_confirm
+        )
+
+    async def _run_saved_execution(self, config_id: str):
+        """Run a saved execution configuration."""
+        # Get the selected project
+        project_dir = self.gradle_manager.get_selected_project()
+        if not project_dir:
+            logging.error("No project selected")
+            return
+
+        # Get all saved executions for this project
+        if project_dir not in self.gradle_manager.config.projects:
+            logging.error(f"Project {project_dir} not found in config")
+            return
+
+        all_saved = self.gradle_manager.config.projects[project_dir].saved_executions
+        config = next((c for c in all_saved if c["id"] == config_id), None)
+
+        if not config:
+            logging.error(f"Saved config {config_id} not found")
+            return
+
+        # Get the task name from the config
+        task_name = config.get("task_name")
+        if not task_name:
+            logging.error(f"Saved config {config_id} has no task_name")
+            return
+
+        # Find and select the task
+        if not self.tasks:
+            logging.error("No tasks loaded")
+            return
+
+        task = next((t for t in self.tasks if t.name == task_name), None)
+        if not task:
+            logging.error(f"Task {task_name} not found")
+            return
+
+        # Select the task
+        self.selected_task = task
+
+        # Mark as used
+        self.gradle_manager.mark_saved_execution_used(config_id)
+
+        # Run with parameters and env vars
+        param_list = config.get("parameters", [])
+        env_vars = config.get("env_vars", {})
+        config_label = config.get("label")
+
+        logging.info(f"Running saved execution: {config_label}")
+        await self._run_task_with_params_impl(param_list, env_vars, config_label)

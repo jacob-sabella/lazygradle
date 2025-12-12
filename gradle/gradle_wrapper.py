@@ -3,7 +3,7 @@ import subprocess
 import logging
 import threading
 import stat
-from typing import Optional, Tuple, List, Callable
+from typing import Optional, Tuple, List, Callable, Dict
 
 from gradle.dto.gradle_error import GradleError
 from gradle.dto.task import Task
@@ -187,7 +187,8 @@ class GradleWrapper:
 
     def run_gradle_command(
         self, command: List[str], on_stdout: Optional[Callable[[str], None]] = None,
-        on_stderr: Optional[Callable[[str], None]] = None
+        on_stderr: Optional[Callable[[str], None]] = None,
+        env_vars: Optional[Dict[str, str]] = None
     ) -> Tuple[Optional[str], Optional[GradleError]]:
         """
         Runs a Gradle command in the project's working directory using the subprocess module.
@@ -196,6 +197,7 @@ class GradleWrapper:
         command (List[str]): The command to run as a list of strings.
         on_stdout (Optional[Callable[[str], None]]): Optional callback for stdout lines.
         on_stderr (Optional[Callable[[str], None]]): Optional callback for stderr lines.
+        env_vars (Optional[Dict[str, str]]): Optional environment variables to merge.
 
         Returns:
         Tuple[Optional[str], Optional[GradleError]]: The output and any error that occurred.
@@ -205,6 +207,11 @@ class GradleWrapper:
                 f"Running command: {' '.join(command)} in {self.working_directory}"
             )
             env = os.environ.copy()
+
+            # Merge custom environment variables
+            if env_vars:
+                self.logger.debug(f"Applying custom env vars: {env_vars}")
+                env.update(env_vars)
 
             # If callbacks are provided, use streaming mode with Popen
             if on_stdout or on_stderr:
@@ -331,7 +338,8 @@ class GradleWrapper:
     def run_custom_gradle_task(
         self, task: str, options: Optional[List[str]] = None,
         on_stdout: Optional[Callable[[str], None]] = None,
-        on_stderr: Optional[Callable[[str], None]] = None
+        on_stderr: Optional[Callable[[str], None]] = None,
+        env_vars: Optional[Dict[str, str]] = None
     ) -> Tuple[Optional[str], Optional[GradleError]]:
         """
         Runs a custom Gradle task in the project's working directory with optional arguments.
@@ -341,6 +349,7 @@ class GradleWrapper:
         options (list): Optional list of additional arguments for the task.
         on_stdout (Optional[Callable[[str], None]]): Optional callback for stdout lines.
         on_stderr (Optional[Callable[[str], None]]): Optional callback for stderr lines.
+        env_vars (Optional[Dict[str, str]]): Optional environment variables to merge.
 
         Returns:
         Tuple[str, GradleError]: The output of the Gradle task as a string and an error object if one occurs.
@@ -352,7 +361,9 @@ class GradleWrapper:
         self.logger.debug(
             f"Running custom Gradle task: {task} with options: {options} in directory: {self.working_directory}"
         )
-        output, error = self.run_gradle_command(command, on_stdout=on_stdout, on_stderr=on_stderr)
+        output, error = self.run_gradle_command(
+            command, on_stdout=on_stdout, on_stderr=on_stderr, env_vars=env_vars
+        )
 
         if error:
             self.logger.error(

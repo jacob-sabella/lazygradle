@@ -21,10 +21,12 @@ class Task:
 
 class Project:
     def __init__(self, tasks: Optional[List[Task]] = None, metadata: Optional[Dict[str, dict]] = None,
-                 recent_tasks: Optional[List[Dict[str, str]]] = None):
+                 recent_tasks: Optional[List[Dict[str, str]]] = None,
+                 saved_executions: Optional[List[Dict]] = None):
         self.tasks = tasks or []
         self.metadata = metadata or {}
         self.recent_tasks = recent_tasks or []  # List of {task_name, timestamp, parameters}
+        self.saved_executions = saved_executions or []  # List of saved execution configurations
 
     def __getitem__(self, key: str):
         if key == "tasks":
@@ -33,6 +35,8 @@ class Project:
             return self.metadata
         elif key == "recent_tasks":
             return self.recent_tasks
+        elif key == "saved_executions":
+            return self.saved_executions
         else:
             raise KeyError(f"{key} not found in Project.")
 
@@ -43,6 +47,8 @@ class Project:
             self.metadata = value
         elif key == "recent_tasks":
             self.recent_tasks = value
+        elif key == "saved_executions":
+            self.saved_executions = value
         else:
             raise KeyError(f"Cannot set value for {key}, not found in Project.")
 
@@ -93,7 +99,8 @@ class GradleManager:
                     key: Project(
                         tasks=[Task(**task) for task in value.get("tasks", [])],
                         metadata=value.get("metadata", {}),
-                        recent_tasks=value.get("recent_tasks", [])
+                        recent_tasks=value.get("recent_tasks", []),
+                        saved_executions=value.get("saved_executions", [])
                     )
                     for key, value in data.get("projects", {}).items()
                 }
@@ -116,6 +123,7 @@ class GradleManager:
                     "tasks": [{"name": task.name, "description": task.description} for task in value.tasks],
                     "metadata": value.metadata,
                     "recent_tasks": value.recent_tasks,
+                    "saved_executions": value.saved_executions,
                 }
                 for key, value in self.config.projects.items()
             },
@@ -355,7 +363,8 @@ class GradleManager:
         return self.config.projects[project_dir].recent_tasks
 
     def run_task(self, task_name: str, on_stdout: Optional[Callable[[str], None]] = None,
-                 on_stderr: Optional[Callable[[str], None]] = None) -> Optional[str]:
+                 on_stderr: Optional[Callable[[str], None]] = None,
+                 env_vars: Optional[Dict[str, str]] = None) -> Optional[str]:
         """
         Run a task from the currently selected project.
 
@@ -363,6 +372,7 @@ class GradleManager:
         task_name (str): The name of the Gradle task to run.
         on_stdout (Optional[Callable[[str], None]]): Optional callback for stdout lines.
         on_stderr (Optional[Callable[[str], None]]): Optional callback for stderr lines.
+        env_vars (Optional[Dict[str, str]]): Optional environment variables to merge.
 
         Returns:
         Optional[str]: The output of the Gradle task, or None if no project is selected.
@@ -373,7 +383,9 @@ class GradleManager:
             return None
 
         gradle_wrapper = GradleWrapper(selected_project)
-        output, error = gradle_wrapper.run_custom_gradle_task(task_name, on_stdout=on_stdout, on_stderr=on_stderr)
+        output, error = gradle_wrapper.run_custom_gradle_task(
+            task_name, on_stdout=on_stdout, on_stderr=on_stderr, env_vars=env_vars
+        )
 
         if error:
             self.logger.error(
@@ -386,7 +398,8 @@ class GradleManager:
 
     def run_task_with_parameters(self, task_name: str, parameters: List[str],
                                   on_stdout: Optional[Callable[[str], None]] = None,
-                                  on_stderr: Optional[Callable[[str], None]] = None) -> Optional[str]:
+                                  on_stderr: Optional[Callable[[str], None]] = None,
+                                  env_vars: Optional[Dict[str, str]] = None) -> Optional[str]:
         """
         Run a task from the currently selected project with additional parameters.
 
@@ -395,6 +408,7 @@ class GradleManager:
         parameters (List[str]): The list of parameters to pass to the Gradle task.
         on_stdout (Optional[Callable[[str], None]]): Optional callback for stdout lines.
         on_stderr (Optional[Callable[[str], None]]): Optional callback for stderr lines.
+        env_vars (Optional[Dict[str, str]]): Optional environment variables to merge.
 
         Returns:
         Optional[str]: The output of the Gradle task, or None if no project is selected.
@@ -405,8 +419,9 @@ class GradleManager:
             return None
 
         gradle_wrapper = GradleWrapper(selected_project)
-        output, error = gradle_wrapper.run_custom_gradle_task(task_name, options=parameters,
-                                                               on_stdout=on_stdout, on_stderr=on_stderr)
+        output, error = gradle_wrapper.run_custom_gradle_task(
+            task_name, options=parameters, on_stdout=on_stdout, on_stderr=on_stderr, env_vars=env_vars
+        )
 
         if error:
             self.logger.error(
@@ -416,4 +431,140 @@ class GradleManager:
         self.logger.debug(f"Task '{task_name}' with parameters '{parameters}' executed successfully.")
         self._record_task_execution(task_name, parameters)
         return output
+
+    def get_saved_executions(self, task_name: str, project_dir: Optional[str] = None) -> List[Dict]:
+        """
+        Get saved execution configurations for a specific task.
+
+        Parameters:
+        task_name (str): The name of the task to filter by.
+        project_dir (Optional[str]): The project directory. Defaults to currently selected project.
+
+        Returns:
+        List[Dict]: List of saved execution configurations for the task.
+        """
+        if project_dir is None:
+            project_dir = self.get_selected_project()
+
+        if not project_dir or project_dir not in self.config.projects:
+            return []
+
+        all_saved = self.config.projects[project_dir].saved_executions
+        return [s for s in all_saved if s.get("task_name") == task_name]
+
+    def save_execution_config(self, task_name: str, label: str,
+                              parameters: List[str], env_vars: Dict[str, str]) -> Optional[str]:
+        """
+        Save a task execution configuration.
+
+        Parameters:
+        task_name (str): The name of the task.
+        label (str): User-provided label for this configuration.
+        parameters (List[str]): List of parameters for the task.
+        env_vars (Dict[str, str]): Environment variables for the task.
+
+        Returns:
+        Optional[str]: The ID of the saved configuration, or None if failed.
+        """
+        selected_project = self.get_selected_project()
+        if not selected_project:
+            self.logger.error("No project selected to save execution configuration.")
+            return None
+
+        execution_id = f"saved_{int(datetime.now().timestamp() * 1000)}"
+        saved_config = {
+            "id": execution_id,
+            "label": label,
+            "task_name": task_name,
+            "parameters": parameters,
+            "env_vars": env_vars,
+            "created_at": datetime.now().isoformat(),
+            "last_used": datetime.now().isoformat()
+        }
+
+        project = self.config.projects[selected_project]
+        project.saved_executions.append(saved_config)
+        self._save_config()
+        self.logger.debug(f"Saved execution configuration '{label}' for task '{task_name}'.")
+        return execution_id
+
+    def update_saved_execution(self, execution_id: str, label: str,
+                               parameters: List[str], env_vars: Dict[str, str]) -> bool:
+        """
+        Update an existing saved execution configuration.
+
+        Parameters:
+        execution_id (str): The ID of the configuration to update.
+        label (str): New label for the configuration.
+        parameters (List[str]): New list of parameters.
+        env_vars (Dict[str, str]): New environment variables.
+
+        Returns:
+        bool: True if update was successful, False otherwise.
+        """
+        selected_project = self.get_selected_project()
+        if not selected_project:
+            self.logger.error("No project selected to update execution configuration.")
+            return False
+
+        project = self.config.projects[selected_project]
+        for execution in project.saved_executions:
+            if execution["id"] == execution_id:
+                execution["label"] = label
+                execution["parameters"] = parameters
+                execution["env_vars"] = env_vars
+                self._save_config()
+                self.logger.debug(f"Updated execution configuration '{execution_id}'.")
+                return True
+
+        self.logger.warning(f"Execution configuration '{execution_id}' not found.")
+        return False
+
+    def delete_saved_execution(self, execution_id: str) -> bool:
+        """
+        Delete a saved execution configuration by ID.
+
+        Parameters:
+        execution_id (str): The ID of the configuration to delete.
+
+        Returns:
+        bool: True if deletion was successful, False otherwise.
+        """
+        selected_project = self.get_selected_project()
+        if not selected_project:
+            self.logger.error("No project selected to delete execution configuration.")
+            return False
+
+        project = self.config.projects[selected_project]
+        original_length = len(project.saved_executions)
+        project.saved_executions = [
+            s for s in project.saved_executions if s["id"] != execution_id
+        ]
+
+        if len(project.saved_executions) < original_length:
+            self._save_config()
+            self.logger.debug(f"Deleted execution configuration '{execution_id}'.")
+            return True
+
+        self.logger.warning(f"Execution configuration '{execution_id}' not found.")
+        return False
+
+    def mark_saved_execution_used(self, execution_id: str) -> None:
+        """
+        Update the last_used timestamp for a saved execution configuration.
+
+        Parameters:
+        execution_id (str): The ID of the configuration.
+        """
+        selected_project = self.get_selected_project()
+        if not selected_project:
+            return
+
+        project = self.config.projects[selected_project]
+        for execution in project.saved_executions:
+            if execution["id"] == execution_id:
+                execution["last_used"] = datetime.now().isoformat()
+                self._save_config()
+                self.logger.debug(f"Marked execution configuration '{execution_id}' as used.")
+                break
 
