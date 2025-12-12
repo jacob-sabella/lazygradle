@@ -32,9 +32,9 @@ class TrackedTask:
         if self.parameters:
             base_name = f"{self.task_name} {' '.join(self.parameters)}"
 
-        # Add config label if present
+        # Add config label if present (escaped for Rich markup)
         if self.config_label:
-            return f"{base_name} [{self.config_label}]"
+            return f"{base_name} ({self.config_label})"
         return base_name
 
     def get_duration(self) -> str:
