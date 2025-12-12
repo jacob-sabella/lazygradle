@@ -2,7 +2,7 @@ from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Vertical
 from textual.widget import Widget
-from textual.widgets import Tab, Tabs, Static
+from textual.widgets import Tab, Tabs, Static, ContentSwitcher
 
 from gradle.gradle_manager import GradleManager
 from ui.gradle_project_changer import GradleProjectChanger
@@ -24,7 +24,8 @@ class LazyGradleWidget(Widget):
         self.gradle_manager = gradle_manager
         self.task_tracker = TaskTracker()
         self.task_manager_widget = None
-        self.current_tab_id = None  # Track which tab is currently mounted
+        self.setup_tab_widget = None
+        self.current_tab_id = None  # Track which tab is currently visible
 
     def compose(self) -> ComposeResult:
         # Create Tabs container with numbered labels
@@ -34,7 +35,7 @@ class LazyGradleWidget(Widget):
             id="gradle-tabs",
             classes="tab-container"
         )
-        # Add the tab content container
+        # Container for tab content
         yield Vertical(id="tab-content-container", classes="tab-content")
 
     def action_switch_tab(self, tab_id: str) -> None:
@@ -44,8 +45,7 @@ class LazyGradleWidget(Widget):
         self.switch_to_tab(tab_id)
 
     def on_mount(self) -> None:
-        # Initialize the default content for the selected tab
-        # Use call_after_refresh to ensure DOM is ready
+        # Initialize with setup tab
         self.call_after_refresh(self.switch_to_tab, "current-setup")
 
     def switch_to_tab(self, tab_id: str, force_refresh: bool = False) -> None:
@@ -53,33 +53,32 @@ class LazyGradleWidget(Widget):
 
         Args:
             tab_id: The ID of the tab to switch to
-            force_refresh: If True, force a remount even if already on this tab
+            force_refresh: If True, recreate widgets
         """
         import logging
 
-        # Skip remounting if we're already on this tab and not forcing refresh
+        # Skip if already on this tab and not forcing refresh
         if self.current_tab_id == tab_id and not force_refresh:
-            logging.info(f"Already on tab {tab_id}, skipping remount")
+            logging.info(f"Already on tab {tab_id}, skipping")
             return
 
         logging.info(f"Switching to tab {tab_id} (force_refresh={force_refresh})")
+
         tab_content_container = self.query_one("#tab-content-container")
         tab_content_container.remove_children()
         self.current_tab_id = tab_id
 
         if tab_id == "current-setup":
-            tab_content_container.mount(
-                Vertical(
-                    GradleProjectChanger(self.gradle_manager, classes="header-label"),
-                    GradleProjectTaskViewer(self.gradle_manager, self, self.task_tracker, classes="task-viewer"),
-                    classes="main-layout"
-                )
+            # Recreate setup tab each time (widgets can't be remounted)
+            self.setup_tab_widget = Vertical(
+                GradleProjectChanger(self.gradle_manager, classes="header-label"),
+                GradleProjectTaskViewer(self.gradle_manager, self, self.task_tracker, classes="task-viewer"),
+                classes="main-layout"
             )
+            tab_content_container.mount(self.setup_tab_widget)
         elif tab_id == "task-manager-tab":
-            # Always create a fresh task manager widget since removed widgets can't be remounted
-            logging.info("Creating fresh task manager widget")
+            # Recreate task manager each time (widgets can't be remounted)
             self.task_manager_widget = TaskManagerWidget(self.task_tracker, classes="task-manager-widget")
-            logging.info("Mounting task manager widget")
             tab_content_container.mount(self.task_manager_widget)
 
     def on_tabs_tab_activated(self, event: Tabs.TabActivated) -> None:

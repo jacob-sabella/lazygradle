@@ -123,11 +123,21 @@ class GradleProjectTaskViewer(Static):
 
         Schedules an automatic refresh of the task list after the UI is fully rendered
         to populate the initially empty task list with current Gradle tasks.
+        Only refreshes if tasks haven't been cached in GradleManager yet.
         """
         selected_project = self.gradle_manager.get_selected_project()
         if selected_project:
-            logging.debug("Scheduling task list refresh after mount")
-            self.call_after_refresh(lambda: asyncio.create_task(self.action_refresh_tasks()))
+            # Check if GradleManager already has cached tasks for this project
+            project_info = self.gradle_manager.get_project_info(selected_project)
+            if project_info and project_info.tasks:
+                # Load cached tasks without refreshing
+                logging.debug(f"Loading {len(project_info.tasks)} cached tasks from GradleManager")
+                self.tasks = sorted(project_info.tasks, key=self._task_sort_key)
+                self._update_tasks_after_refresh("")
+            else:
+                # No cached tasks, trigger a refresh
+                logging.debug("No cached tasks found, scheduling task list refresh after mount")
+                self.call_after_refresh(lambda: asyncio.create_task(self.action_refresh_tasks()))
 
     def render_task_list(self):
         """Create and populate the task list widget.
@@ -651,14 +661,18 @@ class GradleProjectTaskViewer(Static):
             async def execute_task():
                 try:
                     logging.debug("Starting task execution in thread")
-                    await asyncio.to_thread(
+                    result = await asyncio.to_thread(
                         self.gradle_manager.run_task,
                         self.selected_task.name,
                         on_stdout=on_stdout,
                         on_stderr=on_stderr
                     )
                     logging.info("Task execution completed")
-                    loop.call_soon_threadsafe(self.task_tracker.mark_completed, task_id)
+                    # Check if result indicates an error
+                    if result and result.startswith("Error:"):
+                        loop.call_soon_threadsafe(self.task_tracker.mark_failed, task_id, result)
+                    else:
+                        loop.call_soon_threadsafe(self.task_tracker.mark_completed, task_id)
                 except Exception as e:
                     logging.error(f"Task execution failed: {e}", exc_info=True)
                     loop.call_soon_threadsafe(self.task_tracker.mark_failed, task_id, str(e))
@@ -759,7 +773,7 @@ class GradleProjectTaskViewer(Static):
         async def execute_task():
             try:
                 logging.debug("Starting task with parameters execution in thread")
-                await asyncio.to_thread(
+                result = await asyncio.to_thread(
                     self.gradle_manager.run_task_with_parameters,
                     self.selected_task.name,
                     parameters,
@@ -768,7 +782,11 @@ class GradleProjectTaskViewer(Static):
                     env_vars=env_vars
                 )
                 logging.info("Task with parameters execution completed")
-                loop.call_soon_threadsafe(self.task_tracker.mark_completed, task_id)
+                # Check if result indicates an error
+                if result and result.startswith("Error:"):
+                    loop.call_soon_threadsafe(self.task_tracker.mark_failed, task_id, result)
+                else:
+                    loop.call_soon_threadsafe(self.task_tracker.mark_completed, task_id)
             except Exception as e:
                 logging.error(f"Task execution failed: {e}", exc_info=True)
                 loop.call_soon_threadsafe(self.task_tracker.mark_failed, task_id, str(e))

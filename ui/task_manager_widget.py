@@ -81,9 +81,11 @@ class TaskManagerWidget(Widget):
         # Clear and rebuild list
         self.task_list.clear_options()
 
-        tasks = self.task_tracker.get_all_tasks()
+        # Separate running and completed tasks
+        running_tasks = self.task_tracker.get_running_tasks()
+        completed_tasks = self.task_tracker.get_completed_tasks()
 
-        if not tasks:
+        if not running_tasks and not completed_tasks:
             self.task_list.add_option(Option(
                 "[dim]No tasks run yet[/dim]",
                 id="no-tasks",
@@ -91,31 +93,73 @@ class TaskManagerWidget(Widget):
             ))
             return
 
-        for task in tasks:
-            status_icon = self._get_status_icon(task.status)
-            duration = task.get_duration()
-            display_name = task.get_display_name()
-
-            # Format: [icon] task_name - duration
-            if task.status == TaskStatus.RUNNING:
+        # Add running tasks section
+        if running_tasks:
+            self.task_list.add_option(Option(
+                "[bold]Running Tasks[/bold]",
+                id="running-header",
+                disabled=True
+            ))
+            for task in running_tasks:
+                status_icon = self._get_status_icon(task.status)
+                duration = task.get_duration()
+                display_name = task.get_display_name()
                 label = f"{status_icon} [bold cyan]{display_name}[/bold cyan] - {duration}"
-            elif task.status == TaskStatus.COMPLETED:
-                label = f"{status_icon} {display_name} - {duration}"
-            elif task.status == TaskStatus.FAILED:
-                label = f"{status_icon} [red]{display_name}[/red] - {duration}"
-            else:
-                label = f"{status_icon} {display_name} - {duration}"
+                self.task_list.add_option(Option(label, id=task.task_id))
 
-            self.task_list.add_option(Option(label, id=task.task_id))
+        # Add separator if we have both sections
+        if running_tasks and completed_tasks:
+            self.task_list.add_option(Option(
+                "[dim]" + "─" * 40 + "[/dim]",
+                id="separator",
+                disabled=True
+            ))
+
+        # Add history section
+        if completed_tasks:
+            self.task_list.add_option(Option(
+                "[bold]History[/bold]",
+                id="history-header",
+                disabled=True
+            ))
+            for task in completed_tasks:
+                status_icon = self._get_status_icon(task.status)
+                duration = task.get_duration()
+                display_name = task.get_display_name()
+
+                if task.status == TaskStatus.COMPLETED:
+                    label = f"{status_icon} {display_name} - {duration}"
+                elif task.status == TaskStatus.FAILED:
+                    label = f"{status_icon} [red]{display_name}[/red] - {duration}"
+                else:
+                    label = f"{status_icon} {display_name} - {duration}"
+
+                self.task_list.add_option(Option(label, id=task.task_id))
 
         # Restore selection if possible
         if current_selection:
             try:
-                # Find the option index
-                for idx, task in enumerate(tasks):
+                # Search in running tasks first
+                for idx, task in enumerate(running_tasks):
                     if task.task_id == current_selection:
-                        self.task_list.highlighted = idx
-                        break
+                        # Position = "Running Tasks" header (1) + task index
+                        actual_idx = 1 + idx
+                        self.task_list.highlighted = actual_idx
+                        return
+
+                # Search in completed tasks
+                for idx, task in enumerate(completed_tasks):
+                    if task.task_id == current_selection:
+                        # Position = headers + running tasks + separators
+                        actual_idx = 0
+                        if running_tasks:
+                            actual_idx += 1  # "Running Tasks" header
+                            actual_idx += len(running_tasks)  # all running tasks
+                            actual_idx += 1  # separator
+                        actual_idx += 1  # "History" header
+                        actual_idx += idx  # position in completed tasks
+                        self.task_list.highlighted = actual_idx
+                        return
             except Exception as e:
                 logging.debug(f"Could not restore selection: {e}")
 
@@ -169,13 +213,17 @@ class TaskManagerWidget(Widget):
 
     def on_option_list_option_selected(self, event: OptionList.OptionSelected):
         """Handle task selection."""
-        if event.option_list.id == "task-list" and event.option.id != "no-tasks":
+        # Skip non-task items (headers, separators)
+        skip_ids = {"no-tasks", "running-header", "separator", "history-header"}
+        if event.option_list.id == "task-list" and event.option.id not in skip_ids:
             self.selected_task_id = event.option.id
             self._refresh_output()
 
     def on_option_list_option_highlighted(self, event: OptionList.OptionHighlighted):
         """Handle task highlighting with keyboard."""
-        if event.option_list.id == "task-list" and event.option.id != "no-tasks":
+        # Skip non-task items (headers, separators)
+        skip_ids = {"no-tasks", "running-header", "separator", "history-header"}
+        if event.option_list.id == "task-list" and event.option.id not in skip_ids:
             self.selected_task_id = event.option.id
             self._refresh_output()
 
