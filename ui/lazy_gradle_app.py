@@ -35,6 +35,8 @@ class LazyGradleApp(App):
         Binding("p", "show_project_chooser", "Show Project Chooser", priority=True),
     ]
 
+    ENABLE_COMMAND_PALETTE = True
+
     def __init__(self, gradle_manager: GradleManager, **kwargs):
         """Initialize the application.
 
