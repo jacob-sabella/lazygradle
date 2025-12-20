@@ -604,9 +604,10 @@ RichLog {
 }
 
 .save-section {
-  border-top: solid $primary;
+  border-top: thick $primary;
   margin-top: 1;
-  padding-top: 1;
+  padding: 1 2;
+  background: $boost;
 }
 
 /* Confirmation Modal */

@@ -21,6 +21,7 @@ class RunTaskWithParametersModal(ModalScreen):
     BINDINGS = [
         Binding("escape", "dismiss_modal", "Close"),
         Binding("enter", "run_task", "Run Task"),
+        Binding("ctrl+s", "save_config", "Save Config"),
     ]
 
     def __init__(
@@ -150,10 +151,13 @@ class RunTaskWithParametersModal(ModalScreen):
         return Vertical(self.save_checkbox, self.label_input, classes="save-section")
 
     def render_buttons(self):
-        """Render the Run and Cancel buttons."""
+        """Render the Run, Save, and Cancel buttons."""
         return Horizontal(
             Button(
                 "▶ Run Task", id="run_button", variant="success", classes="modal-button"
+            ),
+            Button(
+                "💾 Save Config", id="save_button", variant="primary", classes="modal-button"
             ),
             Button(
                 "Cancel", id="cancel_button", variant="default", classes="modal-button"
@@ -165,6 +169,8 @@ class RunTaskWithParametersModal(ModalScreen):
         """Handle button presses in the modal."""
         if event.button.id == "run_button":
             await self.action_run_task()
+        elif event.button.id == "save_button":
+            await self.action_save_config()
         elif event.button.id == "cancel_button":
             self.dismiss(None)
         elif event.button.id == "paste_button":
@@ -253,6 +259,39 @@ class RunTaskWithParametersModal(ModalScreen):
                     logging.warning(f"Invalid env var format (missing '='): {line}")
 
         return env_vars
+
+    async def action_save_config(self):
+        """Save the configuration without running the task."""
+        # Parse parameters
+        parameters = self.param_input.value if self.param_input else ""
+        param_list = parameters.split() if parameters else []
+
+        # Parse environment variables
+        env_vars = self._parse_env_vars()
+
+        # Get label for the configuration
+        label = self.label_input.value.strip() if self.label_input else ""
+        if not label:
+            # Auto-generate label if empty
+            label = f"{self.selected_task.name} configuration"
+
+        save_config = {
+            "label": label,
+            "task_name": self.selected_task.name,
+            "parameters": param_list,
+            "env_vars": env_vars,
+        }
+
+        # Get execution ID if editing existing configuration
+        execution_id = self.saved_execution["id"] if self.saved_execution else None
+
+        logging.info(
+            f"Modal: Saving config for {self.selected_task.name} with parameters: {param_list}, env_vars: {env_vars}"
+        )
+
+        # Return tuple with None for param_list to indicate save-only (no run)
+        # Format: (None, None, save_config, execution_id)
+        self.dismiss((None, None, save_config, execution_id))
 
     def action_dismiss_modal(self):
         """Dismiss modal using the Escape key."""

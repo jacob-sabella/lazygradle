@@ -718,9 +718,12 @@ class GradleProjectTaskViewer(Static):
                             )
                         self.update_saved_executions_list()
 
-                    # Run task
-                    logging.info(f"Starting task execution with params: {param_list}, env: {env_vars}")
-                    await self._run_task_with_params_impl(param_list, env_vars)
+                    # Run task only if param_list is not None (None indicates save-only)
+                    if param_list is not None or env_vars is not None:
+                        logging.info(f"Starting task execution with params: {param_list}, env: {env_vars}")
+                        await self._run_task_with_params_impl(param_list or [], env_vars)
+                    else:
+                        logging.debug("Configuration saved without running task")
                 else:
                     logging.debug("User cancelled parameter entry")
 
@@ -818,9 +821,9 @@ class GradleProjectTaskViewer(Static):
                     self.update_saved_executions_list()
                     logging.info(f"Saved new configuration: {save_config['label']}")
 
-                # Also run the task if user entered parameters or env vars
-                if param_list or env_vars:
-                    await self._run_task_with_params_impl(param_list, env_vars)
+                # Run the task only if param_list or env_vars is not None
+                if param_list is not None or env_vars is not None:
+                    await self._run_task_with_params_impl(param_list or [], env_vars)
 
         await self.app.push_screen(
             RunTaskWithParametersModal(self.selected_task, self.gradle_manager),
