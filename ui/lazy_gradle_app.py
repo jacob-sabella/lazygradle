@@ -5,7 +5,7 @@ It handles theme persistence, project switching, and coordinates between the UI
 and Gradle management layers.
 """
 
-from textual.app import App, ComposeResult
+from textual.app import App, ComposeResult, SystemCommand
 from textual.binding import Binding
 from textual.widgets import Header, Footer
 from textual.containers import Container
@@ -13,6 +13,7 @@ from textual.containers import Container
 from gradle.gradle_manager import GradleManager
 from ui.project_chooser_modal import ProjectChooserModal
 from ui.widget import LazyGradleWidget
+from ui.keys_guide_modal import KeysGuideModal
 
 
 class LazyGradleApp(App):
@@ -135,3 +136,76 @@ class LazyGradleApp(App):
             theme_name: Name of the newly selected theme.
         """
         self.gradle_manager.set_theme(theme_name)
+
+    def get_system_commands(self, screen):
+        # Replace Textual's built-in "Keys" help panel with our own keys guide.
+        for command in super().get_system_commands(screen):
+            if getattr(command, "title", None) == "Keys":
+                continue
+            yield command
+        yield SystemCommand(
+            "Keys Guide",
+            "Show a verbose key guide (global/tab/pane specific)",
+            self.action_show_keys_guide,
+        )
+
+    def action_show_keys_guide(self) -> None:
+        title, body = self._build_keys_guide()
+        self.push_screen(KeysGuideModal(title, body))
+
+    def _build_keys_guide(self) -> tuple[str, str]:
+        tab_id = None
+        try:
+            widget = self.query_one(LazyGradleWidget)
+            tab_id = getattr(widget, "current_tab_id", None)
+        except Exception:
+            tab_id = None
+
+        focused = getattr(self, "focused", None)
+        focused_name = focused.__class__.__name__ if focused is not None else "None"
+        focused_id = getattr(focused, "id", None)
+        focus_desc = f"{focused_name}" + (f" (id={focused_id})" if focused_id else "")
+
+        tab_label = {
+            "current-setup": "Current Setup",
+            "task-manager-tab": "Task Manager",
+        }.get(tab_id or "", "Unknown")
+
+        title = f"Keys Guide [{tab_label}]"
+        body = (
+            f"[dim]Context:[/] tab={tab_id or 'unknown'} focused={focus_desc}\n\n"
+            "[bold]This Guide[/bold]\n"
+            "  Esc or q: close\n\n"
+            "[bold]Global[/bold]\n"
+            "  1: switch to Current Setup tab\n"
+            "  2: switch to Task Manager tab\n"
+            "  p: project chooser\n"
+            "  Ctrl+h/j/k/l: move focus between panes (current tab)\n"
+            "  Ctrl+Arrow keys: same as Ctrl+h/j/k/l\n"
+            "  Terminal font size: global (your terminal emulator)\n"
+            "    Common: Ctrl+Plus / Ctrl+Minus / Ctrl+0 (reset)\n"
+            "    macOS: Cmd+Plus / Cmd+Minus / Cmd+0 (reset)\n\n"
+            "[bold]Current Setup Tab[/bold]\n"
+            "  /: focus task search\n"
+            "  Enter (in search): jump to first result (highlights it)\n"
+            "  Enter (on a task): run task (same as r)\n"
+            "  r: run task\n"
+            "  R: run task with parameters\n"
+            "  F5: refresh tasks\n\n"
+            "[bold]Task Manager Tab[/bold]\n"
+            "  C (Shift+C): clear task history\n"
+            "  c: cancel running task\n\n"
+            "[bold]Task Output Pane[/bold]\n"
+            "  j/k or Arrow Up/Down: move cursor line\n"
+            "  h/l or Arrow Left/Right: horizontal scroll\n"
+            "  gg: top, G: bottom\n"
+            "  Ctrl+d / Ctrl+u: page down / up\n"
+            "  0 / $: horizontal start / end\n"
+            "  + / -: zoom (readability, not terminal font size)\n"
+            "  Mouse drag: visual select\n"
+            "  v: toggle visual select\n"
+            "  Esc: exit visual select\n"
+            "  VISUAL y: yank selection\n"
+            "  yy: yank current line\n"
+        )
+        return title, body
