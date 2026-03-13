@@ -20,9 +20,6 @@ class GradleWrapper:
         working_directory (str): The directory where the Gradle project resides.
         """
         self.working_directory = working_directory
-        logging.basicConfig(
-            level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s"
-        )
         self.logger = logging.getLogger(__name__)
         self.logger.debug(
             f"GradleWrapper initialized for directory: {self.working_directory}"
