@@ -1,12 +1,15 @@
 import logging
+from rich.markup import escape
 from textual.app import ComposeResult
+from textual import events
 from textual.binding import Binding
-from textual.containers import Horizontal, Vertical, VerticalScroll
+from textual.containers import Horizontal, Vertical
 from textual.widget import Widget
-from textual.widgets import Static, OptionList, RichLog, Button
+from textual.widgets import Static, OptionList, Button
 from textual.widgets._option_list import Option
 
-from ui.task_tracker import TaskTracker, TaskStatus, TrackedTask
+from ui.task_tracker import TaskTracker, TaskStatus
+from ui.task_output_viewer import TaskOutputViewer
 
 
 class TaskManagerWidget(Widget):
@@ -14,7 +17,15 @@ class TaskManagerWidget(Widget):
 
     BINDINGS = [
         Binding("c", "cancel_task", "Cancel Task"),
-        Binding("C", "cancel_task", "Cancel Task"),
+        Binding("C", "clear_history", "Clear History"),
+        Binding("ctrl+h", "focus_left_pane", show=False, priority=True),
+        Binding("ctrl+j", "focus_down_pane", show=False, priority=True),
+        Binding("ctrl+k", "focus_up_pane", show=False, priority=True),
+        Binding("ctrl+l", "focus_right_pane", show=False, priority=True),
+        Binding("ctrl+left", "focus_left_pane", show=False, priority=True),
+        Binding("ctrl+down", "focus_down_pane", show=False, priority=True),
+        Binding("ctrl+up", "focus_up_pane", show=False, priority=True),
+        Binding("ctrl+right", "focus_right_pane", show=False, priority=True),
     ]
 
     def __init__(self, task_tracker: TaskTracker, **kwargs):
@@ -23,6 +34,14 @@ class TaskManagerWidget(Widget):
         self.selected_task_id = None
         self.task_list = None
         self.output_log = None
+        self.output_status = None
+        # Only panes that exist in the Task Manager tab.
+        self.details_scroll = None
+        self.saved_executions_list = None
+        self.recent_tasks_list = None
+        self.task_list_panel = None
+        self.task_output_panel = None
+        self._status_clear_timer = None
 
         # Set callback for task updates
         self.task_tracker.set_update_callback(self._on_tasks_updated)
@@ -31,30 +50,85 @@ class TaskManagerWidget(Widget):
         """Compose the task manager layout."""
         with Horizontal(classes="task-manager-container"):
             # Left panel: Task list
-            with Vertical(classes="task-list-panel"):
+            with Vertical(classes="task-list-panel") as task_list_panel:
+                self.task_list_panel = task_list_panel
                 yield Static("Task History", classes="section-title")
                 yield Button("Clear History", id="clear-history-btn", variant="warning", classes="clear-history-button")
                 self.task_list = OptionList(id="task-list", classes="task-manager-list")
                 yield self.task_list
 
             # Right panel: Task output
-            with Vertical(classes="task-output-panel"):
+            with Vertical(classes="task-output-panel") as task_output_panel:
+                self.task_output_panel = task_output_panel
                 yield Static("Task Output", id="task-output-title", classes="section-title")
-                with VerticalScroll(classes="task-output-scroll"):
-                    self.output_log = RichLog(
-                        id="task-manager-log",
-                        highlight=True,
-                        markup=False,
-                        wrap=True,
-                        auto_scroll=True,
-                        classes="task-manager-output"
-                    )
-                    yield self.output_log
+                self.output_status = Static(
+                    "Output viewer has Vim-style motions; press v/y to select/yank.",
+                    id="task-output-status",
+                    classes="task-output-status",
+                )
+                yield self.output_status
+                self.output_log = TaskOutputViewer(
+                    id="task-manager-log",
+                    classes="task-manager-output",
+                    on_status=self._set_output_status,
+                    focus_router=self._focus_output_neighbor,
+                    on_state_change=self._update_output_guide,
+                )
+                yield self.output_log
+
+    def on_click(self, event: events.Click) -> None:
+        control = event.control
+        if self._is_descendant(control, self.task_list_panel) and self.task_list:
+            self.task_list.focus()
+            return
+        if self._is_descendant(control, self.task_output_panel) and self.output_log:
+            self.output_log.focus()
+            return
+
+    @staticmethod
+    def _is_descendant(control, ancestor) -> bool:
+        if not control or not ancestor:
+            return False
+        widget = control
+        while widget is not None:
+            if widget is ancestor:
+                return True
+            widget = getattr(widget, "parent", None)
+        return False
 
     def on_mount(self) -> None:
         """Initialize the widget when mounted."""
+        if self.output_log:
+            self.output_log.set_config(
+                self.task_tracker.gradle_manager.get_output_settings()
+                if hasattr(self.task_tracker, "gradle_manager")
+                else None
+            )
+            self.output_log.set_lines(["Select a task to view its output"])
+        self._update_output_guide()
         self._refresh_task_list()
+        if self.task_list:
+            self.task_list.focus()
 
+    def _output_guide_text(self) -> str:
+        viewer = self.output_log
+        if not viewer:
+            return ""
+        in_output = self.app and getattr(self.app, "focused", None) is viewer
+        if viewer.visual_mode:
+            prefix = "VISUAL" if in_output else "VISUAL (output)"
+            return (
+                f"[dim]{prefix}: j/k or arrows move, y yank selection, Esc exit, v toggle[/]"
+            )
+        prefix = "OUTPUT" if in_output else "OUTPUT (focus)"
+        return (
+            f"[dim]{prefix}: j/k or arrows move, h/l or arrows scroll, v visual, yy yank line, +/- zoom (readability)[/]"
+        )
+
+    def _update_output_guide(self) -> None:
+        if not self.output_status:
+            return
+        self.output_status.update(self._output_guide_text())
     def _on_tasks_updated(self):
         """Callback when tasks are updated."""
         if not self.is_mounted:
@@ -103,7 +177,7 @@ class TaskManagerWidget(Widget):
             for task in running_tasks:
                 status_icon = self._get_status_icon(task.status)
                 duration = task.get_duration()
-                display_name = task.get_display_name()
+                display_name = escape(task.get_display_name())
                 label = f"{status_icon} [bold cyan]{display_name}[/bold cyan] - {duration}"
                 self.task_list.add_option(Option(label, id=task.task_id))
 
@@ -125,7 +199,7 @@ class TaskManagerWidget(Widget):
             for task in completed_tasks:
                 status_icon = self._get_status_icon(task.status)
                 duration = task.get_duration()
-                display_name = task.get_display_name()
+                display_name = escape(task.get_display_name())
 
                 if task.status == TaskStatus.COMPLETED:
                     label = f"{status_icon} {display_name} - {duration}"
@@ -184,29 +258,41 @@ class TaskManagerWidget(Widget):
         if not task:
             return
 
-        # Clear and redisplay all output
-        self.output_log.clear()
-
         # Header
-        self.output_log.write(f"Task: {task.get_display_name()}")
-        self.output_log.write(f"Started: {task.start_time.strftime('%Y-%m-%d %H:%M:%S')}")
+        lines = [
+            f"Task: {escape(task.get_display_name())}",
+            f"Started: {task.start_time.strftime('%Y-%m-%d %H:%M:%S')}",
+        ]
 
         if task.end_time:
-            self.output_log.write(f"Ended: {task.end_time.strftime('%Y-%m-%d %H:%M:%S')}")
+            lines.append(f"Ended: {task.end_time.strftime('%Y-%m-%d %H:%M:%S')}")
 
-        self.output_log.write(f"Duration: {task.get_duration()}")
-        self.output_log.write(f"Status: {task.status.value.upper()}")
-        self.output_log.write("=" * 80)
-        self.output_log.write("")
+        lines.extend(
+            [
+                f"Duration: {task.get_duration()}",
+                f"Status: {task.status.value.upper()}",
+                "=" * 80,
+                "",
+            ]
+        )
 
         # Output lines
-        for line in task.output_lines:
-            self.output_log.write(line)
+        lines.extend(task.output_lines)
+        previous_task_id = self.output_log.task_context.get("task_id")
+        if previous_task_id != task.task_id:
+            self.output_log.clear()
+            self.output_log.current_line = max(len(lines) - 1, 0)
+        self.output_log.set_context(
+            task_id=task.task_id,
+            task_name=task.task_name,
+            project_path=getattr(self.task_tracker, "project_path", None),
+        )
+        self.output_log.set_lines(lines)
 
         # Update title
         try:
             title = self.query_one("#task-output-title", Static)
-            title.update(f"Task Output - {task.get_display_name()}")
+            title.update(f"Task Output - {escape(task.get_display_name())}")
         except Exception as e:
             logging.debug(f"Could not update title: {e}")
 
@@ -230,28 +316,11 @@ class TaskManagerWidget(Widget):
     async def on_button_pressed(self, event: Button.Pressed):
         """Handle button presses."""
         if event.button.id == "clear-history-btn":
-            self.task_tracker.clear_history()
-            self.selected_task_id = None
-            self._refresh_task_list()
-
-            # Clear output
-            if self.output_log:
-                self.output_log.clear()
-                self.output_log.write("Select a task to view its output")
-
-            try:
-                title = self.query_one("#task-output-title", Static)
-                title.update("Task Output")
-            except:
-                pass
+            self.action_clear_history()
 
     def append_output_to_task(self, task_id: str, line: str):
         """Append output to a specific task and update display if selected."""
         self.task_tracker.append_output(task_id, line)
-
-        # If this is the currently selected task, append to display
-        if task_id == self.selected_task_id and self.output_log:
-            self.output_log.write(line)
 
     def select_task(self, task_id: str):
         """Programmatically select a task by ID."""
@@ -268,6 +337,8 @@ class TaskManagerWidget(Widget):
                     self.task_list.highlighted = idx
                     self.selected_task_id = task_id
                     self._refresh_output()
+                    if self.output_log:
+                        self.output_log.focus()
                     logging.info(f"Auto-selected task: {task_id}")
                     break
                 except Exception as e:
@@ -295,3 +366,69 @@ class TaskManagerWidget(Widget):
             self._refresh_output()
         else:
             logging.warning(f"Failed to cancel task: {self.selected_task_id}")
+
+    def action_clear_history(self):
+        self.task_tracker.clear_history()
+        self.selected_task_id = None
+        self._refresh_task_list()
+
+        if self.output_log:
+            self.output_log.clear()
+            self.output_log.set_lines(["Select a task to view its output"])
+
+        try:
+            title = self.query_one("#task-output-title", Static)
+            title.update("Task Output")
+        except Exception:
+            pass
+
+    def action_focus_left_pane(self):
+        if self.task_list:
+            self.task_list.focus()
+
+    def action_focus_right_pane(self):
+        if self.output_log:
+            self.output_log.focus()
+
+    def action_focus_up_pane(self):
+        self._cycle_focus(-1)
+
+    def action_focus_down_pane(self):
+        self._cycle_focus(1)
+
+    def _cycle_focus(self, delta: int) -> None:
+        order = [pane for pane in (self.task_list, self.output_log) if pane]
+        if not order:
+            return
+
+        focused = self.app.focused if self.app else None
+        current_idx = -1
+        for idx, pane in enumerate(order):
+            if pane is focused:
+                current_idx = idx
+                break
+
+        next_idx = (current_idx + delta) % len(order)
+        order[next_idx].focus()
+
+    def _focus_output_neighbor(self, direction: str) -> None:
+        if direction in {"h", "k"} and self.task_list:
+            self.task_list.focus()
+        elif direction in {"l", "j"} and self.output_log:
+            self.output_log.focus()
+
+    def _set_output_status(self, message: str, is_error: bool) -> None:
+        if not self.output_status:
+            return
+        style = "bold red" if is_error else "dim"
+        self.output_status.update(f"[{style}]{escape(message)}[/]")
+
+        # Make status lines transient so they don't stick around forever.
+        if self._status_clear_timer and hasattr(self._status_clear_timer, "stop"):
+            self._status_clear_timer.stop()
+        delay = 5 if is_error else 2
+        if hasattr(self, "set_timer"):
+            self._status_clear_timer = self.set_timer(delay, self._clear_output_status)
+
+    def _clear_output_status(self) -> None:
+        self._update_output_guide()
