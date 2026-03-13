@@ -1,214 +1,176 @@
 <a id="readme-top"></a>
 
-<!-- PROJECT SHIELDS -->
-
 [![Contributors][contributors-shield]][contributors-url]
 [![Forks][forks-shield]][forks-url]
 [![Stargazers][stars-shield]][stars-url]
 [![Issues][issues-shield]][issues-url]
 [![MIT License][license-shield]][license-url]
 
-<!-- PROJECT LOGO -->
-<br />
-<div align="center">
-  <h3 align="center">lazygradle</h3>
+# lazygradle
 
-  <p align="center">
-    A TUI for managing and running your Gradle tasks
-    <br />
-    <a href="#usage"><strong>Explore the docs »</strong></a>
-    <br />
-    <br />
-    <a href="https://github.com/jacob-sabella/lazygradle/issues/new?labels=bug&template=bug-report---.md">Report Bug</a>
-    ·
-    <a href="https://github.com/jacob-sabella/lazygradle/issues/new?labels=enhancement&template=feature-request---.md">Request Feature</a>
-  </p>
-</div>
+`lazygradle` is a Textual-based TUI for browsing Gradle tasks, running them quickly, and reviewing task output without leaving the terminal.
 
-<!-- ABOUT THE PROJECT -->
+It is built for the workflow of:
 
-## About The Project
+- keeping multiple Gradle projects cached and switchable
+- searching a large task list quickly
+- running tasks with or without saved parameter sets
+- reviewing recent task history and output in a dedicated task manager tab
+- staying mostly keyboard-driven
 
-LazyGradle is a Terminal User Interface (TUI) application for managing and running Gradle tasks.
+## Screenshots
 
-![Main Interface](screenshots/home_screen.png)
-_Main interface showing task list and details_
+### Current Setup
 
-![Project Manager](screenshots/project_manager.png)
-_Manage multiple Gradle projects_
+![Current Setup](screenshots/readme/current-setup-overview.svg)
 
-![Run Gradle Tasks](screenshots/run_gradle_task.png)
-_Run Gradle tasks_
+Browse available tasks, search with `/`, inspect task details, and run tasks or saved configurations from the same screen.
 
-![Run Gradle Tasks w/ Parameters](screenshots/run_task_with_parameters.png)
-_Run Gradle tasks with parameters_
+### Task Manager
 
-**Features:**
+![Task Manager](screenshots/readme/task-manager-output.svg)
 
-- Manage multiple Gradle projects
-- View all available tasks with descriptions
-- Run tasks with or without parameters
-- Real-time task output streaming
-- Configuration persistence
-- Dark mode
-- Keyboard navigation
-- Task execution history tracking
+Review task history on the left and inspect structured output on the right with vim-style motions, visual selection, yanking, and pane-focused navigation.
 
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
+### Run With Parameters
 
-### Built With
+![Run Task With Parameters](screenshots/readme/run-task-with-parameters.svg)
 
-- [![Python][Python-badge]][Python-url]
-- [![Textual][Textual-badge]][Textual-url]
+Launch tasks with custom CLI flags and environment variables, then save those inputs as reusable configurations.
 
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
+### Keys Guide
 
-<!-- GETTING STARTED -->
+![Keys Guide](screenshots/readme/keys-guide.svg)
 
-## Getting Started
+The command palette includes a contextual keys guide that explains global controls plus tab- and pane-specific actions.
 
-To get LazyGradle up and running on your local machine, follow these simple steps.
+## Highlights
 
-### Prerequisites
+- Multi-project support with cached Gradle metadata
+- Fast task search and keyboard-first task execution
+- Saved task configurations with parameters and environment variables
+- Recent task history with re-run support
+- Dedicated Task Manager tab for output review
+- Vim-style Task Output navigation, visual selection, and yank support
+- Contextual key guide from the command palette
+- Optional file logging via environment variable
 
-- Python 3.13 or higher
-- A Gradle project (with `gradlew` wrapper or system `gradle` installed)
+## Installation
 
-### Installation
-
-#### Via pip
-
-`pip install lazygradle`
-
-#### Manually
-
-1. Clone the repository
-
-   ```sh
-   git clone https://github.com/jacob-sabella/lazygradle.git
-   ```
-
-2. Navigate to the project directory
-
-   ```sh
-   cd lazygradle
-   ```
-
-3. Create and activate a virtual environment
-
-   ```sh
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
-
-4. Install dependencies
-
-   ```sh
-   pip install -r requirements.txt
-   ```
-
-5. Run the application
-
-   ```sh
-   python app.py
-   ```
-
-### Optional Logging
-
-Logging is disabled by default. To enable file logging, set `LAZYGRADLE_LOG_FILE`.
+### pip
 
 ```sh
-LAZYGRADLE_LOG_FILE=1 python app.py
+pip install lazygradle
 ```
 
-That writes logs to `lazygradleapp.log` in the current directory. You can also provide an explicit path:
+Run it with:
 
 ```sh
-LAZYGRADLE_LOG_FILE=~/.local/state/lazygradle/app.log python app.py
+lazygradle
 ```
 
-`LAZYGRADLE_LOG_LEVEL` is also supported and defaults to `DEBUG` when logging is enabled.
+### From Source
 
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
+```sh
+git clone https://github.com/jacob-sabella/lazygradle.git
+cd lazygradle
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+python app.py
+```
 
-<!-- USAGE EXAMPLES -->
+## Requirements
 
-## Usage
+- Python 3.13+
+- A Gradle project
+- Either a working `gradlew` wrapper in the project or `gradle` available on `PATH`
 
-### First Launch
+## Quick Start
 
-When you first launch LazyGradle, you'll need to add a Gradle project:
+1. Launch `lazygradle`.
+2. Press `p` to open the project chooser.
+3. Add or select a Gradle project.
+4. Use `/` to focus task search on the Current Setup tab.
+5. Press `r` to run the highlighted task or `R` to run it with parameters.
+6. Press `2` to open Task Manager and inspect recent runs and output.
 
-1. Press `p` to open the project chooser
-2. Add your Gradle project directory
-3. LazyGradle will automatically detect and cache all available tasks
+## Keyboard Workflow
 
-### Keyboard Shortcuts
+### Global
 
-- `p` - Open project chooser (switch between projects or add new ones)
-- `d` - Toggle dark mode
-- `r` - Run the selected task
-- `R` - Run the selected task with custom parameters
-- `Tab` / `Shift+Tab` - Navigate between UI elements
-- `↑` / `↓` - Navigate task list
+- `1` / `2` switch between tabs
+- `p` opens the project chooser
+- `Ctrl+h/j/k/l` moves between panes in the active tab
+- `Ctrl+Arrow` keys do the same pane movement if you prefer arrows
 
-### Running Tasks
+### Current Setup
 
-1. Select a task from the list on the left
-2. View the task description on the right
-3. Press `r` to run, or `R` to run with parameters
-4. Watch the real-time output in the output panel
+- `/` focuses the task search input
+- `Enter` in search jumps to the first result
+- `r` runs the selected task
+- `R` runs the selected task with parameters
+- `F5` refreshes the task list
 
-### Managing Projects
+### Task Output
 
-LazyGradle stores your project configurations in `~/.config/lazygradle/gradle_cache.json`, so your projects and their task lists are remembered between sessions.
+- `j` / `k` or arrow up/down move the cursor line
+- `h` / `l` or arrow left/right scroll horizontally
+- `gg`, `G`, `Ctrl+d`, `Ctrl+u`, `0`, `$` work as expected
+- `v` toggles visual mode
+- mouse drag also enters visual selection
+- `y` yanks the current visual selection
+- `yy` yanks the current line
+- `+` / `-` adjusts readability zoom for the output pane
 
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
+## Logging
 
-<!-- ROADMAP -->
+Logging is disabled by default.
+
+Enable it by setting `LAZYGRADLE_LOG_FILE`:
+
+```sh
+LAZYGRADLE_LOG_FILE=1 lazygradle
+```
+
+That writes to `lazygradleapp.log` in the current directory. You can also provide an explicit path:
+
+```sh
+LAZYGRADLE_LOG_FILE=~/.local/state/lazygradle/app.log lazygradle
+```
+
+`LAZYGRADLE_LOG_LEVEL` is also supported. When logging is enabled, it defaults to `DEBUG`.
+
+## Configuration
+
+Project state is stored in:
+
+```text
+~/.config/lazygradle/gradle_cache.json
+```
+
+That cache includes saved projects, recent task history, saved run configurations, theme selection, and Task Output settings.
 
 ## Contributing
 
-If you have a suggestion that would make this better, please fork the repo and create a pull request. You can also simply open an issue with the tag "enhancement".
-Don't forget to give the project a star! Thanks again!
+Issues and pull requests are welcome.
 
-1. Fork the Project
-2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the Branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+If you want to contribute:
 
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
-
-<!-- LICENSE -->
+1. Fork the repository
+2. Create a feature branch
+3. Make the change
+4. Open a pull request
 
 ## License
 
-Distributed under the MIT License. See `LICENSE` for more information.
-
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
+Distributed under the MIT License. See [LICENSE](LICENSE).
 
 ## Acknowledgments
 
-- [Textual](https://textual.textualize.io/) - The amazing TUI framework that powers LazyGradle
-- [Best-README-Template](https://github.com/othneildrew/Best-README-Template) - For this README template
-- [Shields.io](https://shields.io/) - For the badges
-
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
-
-## AI Usage in Development
-
-The ability to get this project to a usable state in my free time was definitely made possible through the help of Generative AI tooling to assist with development. This has included the following.
-
-- Claude Code (CLAUDE.MD file included in project)
-- ChatGPT Web
-- opencode
-
-I do have plans to clean up much of the AI generated comments and code to graduate it a bit above "AI slop" status where its present, but it's certainly been a higher priority for me to get something working and usable for my other purposes (which is primarily Sockbowl development).
-
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
-
-<!-- MARKDOWN LINKS & IMAGES -->
+- [Textual](https://textual.textualize.io/)
+- [Rich](https://github.com/Textualize/rich)
+- [Shields.io](https://shields.io/)
 
 [contributors-shield]: https://img.shields.io/github/contributors/jacob-sabella/lazygradle.svg?style=for-the-badge
 [contributors-url]: https://github.com/jacob-sabella/lazygradle/graphs/contributors
@@ -220,7 +182,3 @@ I do have plans to clean up much of the AI generated comments and code to gradua
 [issues-url]: https://github.com/jacob-sabella/lazygradle/issues
 [license-shield]: https://img.shields.io/github/license/jacob-sabella/lazygradle.svg?style=for-the-badge
 [license-url]: https://github.com/jacob-sabella/lazygradle/blob/main/LICENSE
-[Python-badge]: https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white
-[Python-url]: https://www.python.org/
-[Textual-badge]: https://img.shields.io/badge/Textual-000000?style=for-the-badge&logo=python&logoColor=white
-[Textual-url]: https://textual.textualize.io/
