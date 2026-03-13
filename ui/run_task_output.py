@@ -1,4 +1,5 @@
 import logging
+from rich.markup import escape
 from textual.widgets import RichLog
 from textual.containers import VerticalScroll
 from textual.app import ComposeResult
@@ -63,7 +64,7 @@ class RunTaskOutput(VerticalScroll):
             if not log.is_mounted:
                 logging.error("RichLog is not mounted!")
                 return
-            log.write(line)
+            log.write(escape(line))
             # Ensure we scroll to the bottom to show latest output
             log.scroll_end(animate=False)
         except Exception as e:
@@ -80,7 +81,7 @@ class RunTaskOutput(VerticalScroll):
             if not log.is_mounted:
                 logging.error("RichLog is not mounted!")
                 return
-            log.write(f"[bold red]{line}[/bold red]")
+            log.write(f"[bold red]{escape(line)}[/bold red]")
             # Ensure we scroll to the bottom to show latest output
             log.scroll_end(animate=False)
         except Exception as e:

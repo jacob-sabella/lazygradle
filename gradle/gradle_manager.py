@@ -54,10 +54,17 @@ class Project:
 
 
 class Config:
-    def __init__(self, projects: Optional[Dict[str, Project]] = None, currently_selected: Optional[str] = None, theme: Optional[str] = None):
+    def __init__(
+        self,
+        projects: Optional[Dict[str, Project]] = None,
+        currently_selected: Optional[str] = None,
+        theme: Optional[str] = None,
+        output_settings: Optional[Dict[str, object]] = None,
+    ):
         self.projects = projects or {}
         self.currently_selected = currently_selected
         self.theme = theme  # Store selected theme name
+        self.output_settings = output_settings or {}
 
     def __getitem__(self, key: str):
         return self.projects[key]
@@ -69,6 +76,11 @@ class Config:
 class GradleManager:
     CONFIG_DIR = Path.home() / ".config/lazygradle"
     CONFIG_FILE = CONFIG_DIR / "gradle_cache.json"
+    DEFAULT_OUTPUT_SETTINGS = {
+        "default_zoom": 0,
+        "clipboard_enabled": True,
+        "yank_hook": "",
+    }
 
     def __init__(self):
         """
@@ -81,7 +93,6 @@ class GradleManager:
         self.logger.debug("GradleManager initialized.")
 
     def _setup_logger(self):
-        logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
         return logging.getLogger(__name__)
 
     def _load_config(self) -> Config:
@@ -107,11 +118,16 @@ class GradleManager:
                 return Config(
                     projects=projects,
                     currently_selected=data.get("currently_selected"),
-                    theme=data.get("theme")
+                    theme=data.get("theme"),
+                    output_settings=self._normalize_output_settings(
+                        data.get("output_settings")
+                    ),
                 )
         else:
             self.logger.debug(f"No config found, creating a new one at {self.CONFIG_FILE}")
-            return Config()
+            return Config(
+                output_settings=self._normalize_output_settings(None),
+            )
 
     def _save_config(self) -> None:
         """
@@ -129,10 +145,49 @@ class GradleManager:
             },
             "currently_selected": self.config.currently_selected,
             "theme": self.config.theme,
+            "output_settings": self._normalize_output_settings(
+                self.config.output_settings
+            ),
         }
         with open(self.CONFIG_FILE, "w") as f:
             json.dump(config_dict, f, indent=4)
         self.logger.debug(f"Configuration saved to {self.CONFIG_FILE}")
+
+    def _normalize_output_settings(
+        self, output_settings: Optional[Dict[str, object]]
+    ) -> Dict[str, object]:
+        merged = dict(self.DEFAULT_OUTPUT_SETTINGS)
+        if isinstance(output_settings, dict):
+            merged.update(output_settings)
+
+        try:
+            merged["default_zoom"] = int(merged.get("default_zoom", 0))
+        except (TypeError, ValueError):
+            merged["default_zoom"] = self.DEFAULT_OUTPUT_SETTINGS["default_zoom"]
+
+        clipboard_enabled = merged.get("clipboard_enabled", True)
+        if isinstance(clipboard_enabled, str):
+            merged["clipboard_enabled"] = clipboard_enabled.strip().lower() not in {
+                "",
+                "0",
+                "false",
+                "no",
+                "off",
+            }
+        else:
+            merged["clipboard_enabled"] = bool(clipboard_enabled)
+        merged["yank_hook"] = str(merged.get("yank_hook", "") or "")
+        return merged
+
+    def get_output_settings(self) -> Dict[str, object]:
+        return self._normalize_output_settings(self.config.output_settings)
+
+    def update_output_settings(self, **settings: object) -> Dict[str, object]:
+        merged = self.get_output_settings()
+        merged.update(settings)
+        self.config.output_settings = self._normalize_output_settings(merged)
+        self._save_config()
+        return self.config.output_settings
 
     def add_project(self, project_dir: str) -> None:
         """
@@ -567,4 +622,3 @@ class GradleManager:
                 self._save_config()
                 self.logger.debug(f"Marked execution configuration '{execution_id}' as used.")
                 break
-

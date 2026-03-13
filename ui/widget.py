@@ -23,6 +23,8 @@ class LazyGradleWidget(Widget):
         super().__init__(**kwargs)
         self.gradle_manager = gradle_manager
         self.task_tracker = TaskTracker()
+        self.task_tracker.gradle_manager = gradle_manager
+        self.task_tracker.project_path = gradle_manager.get_selected_project()
         self.task_manager_widget = None
         self.setup_tab_widget = None
         self.current_tab_id = None  # Track which tab is currently visible
@@ -63,6 +65,7 @@ class LazyGradleWidget(Widget):
             return
 
         logging.info(f"Switching to tab {tab_id} (force_refresh={force_refresh})")
+        self.task_tracker.project_path = self.gradle_manager.get_selected_project()
 
         tab_content_container = self.query_one("#tab-content-container")
         tab_content_container.remove_children()

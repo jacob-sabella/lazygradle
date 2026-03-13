@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import Optional, List, Callable
 from dataclasses import dataclass, field
 from enum import Enum
+from rich.markup import escape
 
 
 class TaskStatus(Enum):
@@ -62,6 +63,8 @@ class TaskTracker:
         self.max_history = max_history
         self._task_counter = 0
         self._update_callback: Optional[Callable] = None
+        self.gradle_manager = None
+        self.project_path: Optional[str] = None
 
     def set_update_callback(self, callback: Callable):
         """Set callback to be called when tasks are updated."""
@@ -130,7 +133,7 @@ class TaskTracker:
             task.status = TaskStatus.FAILED
             task.end_time = datetime.now()
             if error_message:
-                task.output_lines.append(f"[ERROR] {error_message}")
+                task.output_lines.append(f"[bold red]ERROR:[/bold red] {escape(error_message)}")
             self._notify_update()
             logging.info(f"Task failed: {task_id} - {task.get_display_name()}")
 
