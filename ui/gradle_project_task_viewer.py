@@ -8,8 +8,10 @@ task execution with streaming output, and recent task history.
 import logging
 import asyncio
 import re
+from rich.markup import escape
 
 from textual.app import ComposeResult
+from textual import events
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical, Container, VerticalScroll
 from textual.widgets import Static, Label, OptionList, Button, Input
@@ -42,10 +44,17 @@ class GradleProjectTaskViewer(Static):
 
     BINDINGS = [
         Binding("r", "run_task", "Run Task"),
-        Binding("enter", "run_task", "Run Task"),
         Binding("R", "run_task_with_parameters", "Run Task with Parameters"),
         Binding("/", "focus_search", "Search Tasks"),
-        Binding("f5", "refresh_tasks", "Refresh Tasks")
+        Binding("f5", "refresh_tasks", "Refresh Tasks"),
+        Binding("ctrl+h", "focus_left_pane", show=False, priority=True),
+        Binding("ctrl+j", "focus_down_pane", show=False, priority=True),
+        Binding("ctrl+k", "focus_up_pane", show=False, priority=True),
+        Binding("ctrl+l", "focus_right_pane", show=False, priority=True),
+        Binding("ctrl+left", "focus_left_pane", show=False, priority=True),
+        Binding("ctrl+down", "focus_down_pane", show=False, priority=True),
+        Binding("ctrl+up", "focus_up_pane", show=False, priority=True),
+        Binding("ctrl+right", "focus_right_pane", show=False, priority=True),
     ]
 
     def __init__(self, gradle_manager: GradleManager, parent_widget, task_tracker: TaskTracker, **kwargs):
@@ -73,6 +82,11 @@ class GradleProjectTaskViewer(Static):
         self.saved_executions_list = None
         self.running_task = None
         self.is_refreshing = False
+        self.details_scroll = None
+        self.run_task_button = None
+        self.run_task_with_params_button = None
+        self.task_list_panel = None
+        self.task_details_panel = None
 
     def compose(self) -> ComposeResult:
         """Compose the task viewer layout.
@@ -91,32 +105,63 @@ class GradleProjectTaskViewer(Static):
             self.tasks = []
             self.filtered_tasks = []
 
-            yield Horizontal(
-                Vertical(
-                    Static("Available Tasks", classes="section-title"),
-                    self.search_input,
-                    self.render_task_list(),
-                    classes="task-list-panel"
-                ),
-                Vertical(
-                    Static("Task Details", classes="section-title"),
-                    VerticalScroll(
-                        self.task_name_label,
-                        self.description_widget,
-                        classes="task-details-scroll"
-                    ),
-                    self.render_buttons(),
-                    Static("Saved Configurations", classes="section-title saved-configs-title"),
-                    self.render_saved_executions(),
-                    self.render_saved_execution_buttons(),
-                    Static("Recently Run Tasks", classes="section-title recent-tasks-title"),
-                    self.render_recent_tasks(),
-                    classes="task-details-panel"
-                ),
-                classes="main-content"
-            )
+            with Horizontal(classes="main-content"):
+                with Vertical(classes="task-list-panel") as task_list_panel:
+                    self.task_list_panel = task_list_panel
+                    yield Static("Available Tasks", classes="section-title")
+                    yield self.search_input
+                    yield self.render_task_list()
+
+                with Vertical(classes="task-details-panel") as task_details_panel:
+                    self.task_details_panel = task_details_panel
+                    yield Static("Task Details", classes="section-title")
+                    with VerticalScroll(classes="task-details-scroll") as details:
+                        self.details_scroll = details
+                        yield self.task_name_label
+                        yield self.description_widget
+                        yield self.render_buttons()
+                        yield Static("Saved Configurations", classes="section-title saved-configs-title")
+                        yield self.render_saved_executions()
+                        yield self.render_saved_execution_buttons()
+                        yield Static("Recently Ran Tasks", classes="section-title recent-tasks-title")
+                        yield self.render_recent_tasks()
         else:
             yield Label("No project selected.", classes="no-project")
+
+    def on_click(self, event: events.Click) -> None:
+        """Clicking empty space in a pane focuses its primary control."""
+        control = event.control
+
+        if self._is_descendant(control, self.task_list_panel):
+            # Prefer focusing the list; if the click is on the input, Textual will focus it anyway.
+            if self.task_option_list:
+                self.task_option_list.focus()
+            return
+
+        if self._is_descendant(control, self.task_details_panel):
+            target = self._detail_focus_target()
+            if target:
+                target.focus()
+            return
+
+        if self._is_descendant(control, self.saved_executions_list):
+            self.saved_executions_list.focus()
+            return
+
+        if self._is_descendant(control, self.recent_tasks_list):
+            self.recent_tasks_list.focus()
+            return
+
+    @staticmethod
+    def _is_descendant(control, ancestor) -> bool:
+        if not control or not ancestor:
+            return False
+        widget = control
+        while widget is not None:
+            if widget is ancestor:
+                return True
+            widget = getattr(widget, "parent", None)
+        return False
 
     def on_mount(self) -> None:
         """Trigger background task refresh after widget is mounted.
@@ -158,12 +203,14 @@ class GradleProjectTaskViewer(Static):
             )
         else:
             for task in self.filtered_tasks:
-                self.task_option_list.add_option(Option(task.name))
-                logging.debug(f"Added task: {task.name}")
+                task_name = (task.name or "").strip()
+                if not task_name:
+                    continue
+                self.task_option_list.add_option(Option(task_name))
+                logging.debug(f"Added task: {task_name}")
         return self.task_option_list
 
-    @staticmethod
-    def render_buttons():
+    def render_buttons(self):
         """Create the task action buttons panel.
 
         Builds a horizontal container with buttons for running tasks with or without
@@ -172,9 +219,11 @@ class GradleProjectTaskViewer(Static):
         Returns:
             Horizontal container with Run Task and Run with Params buttons.
         """
+        self.run_task_button = Button("▶ Run Task (r)", id="run_task_button", variant="success", classes="action-button")
+        self.run_task_with_params_button = Button("⚙ Run with Params (R)", id="run_task_with_params_button", variant="primary", classes="action-button")
         return Horizontal(
-            Button("▶ Run Task (r)", id="run_task_button", variant="success", classes="action-button"),
-            Button("⚙ Run with Params (R)", id="run_task_with_params_button", variant="primary", classes="action-button"),
+            self.run_task_button,
+            self.run_task_with_params_button,
             classes="task-actions"
         )
 
@@ -333,15 +382,26 @@ class GradleProjectTaskViewer(Static):
 
             if search_query:
                 self.filtered_tasks = [
-                    task for task in self.tasks
-                    if search_query in task.name.lower() or search_query in task.description.lower()
+                    task
+                    for task in self.tasks
+                    if (task.name or "").strip()
+                    and (
+                        search_query in task.name.lower()
+                        or search_query in task.description.lower()
+                    )
                 ]
                 logging.debug(f"Filtered to {len(self.filtered_tasks)} tasks")
             else:
-                self.filtered_tasks = self.tasks
+                self.filtered_tasks = [task for task in self.tasks if (task.name or "").strip()]
                 logging.debug(f"Showing all {len(self.filtered_tasks)} tasks")
 
             self.update_task_list()
+
+    def on_input_submitted(self, event: Input.Submitted) -> None:
+        if event.input is self.search_input:
+            self._focus_first_task_result()
+            if hasattr(event, "stop"):
+                event.stop()
 
     def update_task_list(self):
         """Refresh the task option list with current filtered tasks.
@@ -353,7 +413,10 @@ class GradleProjectTaskViewer(Static):
         if self.task_option_list:
             self.task_option_list.clear_options()
             for task in self.filtered_tasks:
-                self.task_option_list.add_option(Option(task.name))
+                task_name = (task.name or "").strip()
+                if not task_name:
+                    continue
+                self.task_option_list.add_option(Option(task_name))
 
             if not self.filtered_tasks:
                 self.task_name_label.update("[dim]No tasks match your search[/dim]")
@@ -363,6 +426,72 @@ class GradleProjectTaskViewer(Static):
     def action_focus_search(self):
         """Focus the search input."""
         self.search_input.focus()
+
+    def action_focus_left_pane(self):
+        self._cycle_focus(-1)
+
+    def action_focus_right_pane(self):
+        self._cycle_focus(1)
+
+    def action_focus_up_pane(self):
+        self._cycle_focus(-1)
+
+    def action_focus_down_pane(self):
+        self._cycle_focus(1)
+
+    def _cycle_focus(self, delta: int) -> None:
+        candidates = self._focus_candidates()
+        if not candidates:
+            return
+
+        focused = self.app.focused if self.app else None
+        current_idx = -1
+        for idx, widget in enumerate(candidates):
+            if widget is focused:
+                current_idx = idx
+                break
+
+        next_idx = (current_idx + delta) % len(candidates)
+        candidates[next_idx].focus()
+
+    def _focus_candidates(self):
+        targets = [
+            self.search_input,
+            self.task_option_list,
+            self._detail_focus_target(),
+            self.saved_executions_list,
+            self.recent_tasks_list,
+        ]
+        return [widget for widget in targets if widget]
+
+    def _detail_focus_target(self):
+        return self.run_task_button or self.details_scroll
+
+    def _focus_first_task_result(self) -> None:
+        if not self.task_option_list:
+            return
+
+        index = 0
+        while True:
+            try:
+                option = self.task_option_list.get_option_at_index(index)
+            except Exception:
+                break
+
+            prompt = (getattr(option, "prompt", "") or "").strip()
+            if not getattr(option, "disabled", False) and prompt:
+                self.task_option_list.highlighted = index
+                self.task_option_list.focus()
+                # Update details immediately.
+                self.selected_task = next(
+                    (task for task in self.tasks if (task.name or "").strip() == prompt),
+                    None,
+                )
+                if self.selected_task:
+                    self.update_task_description(self.selected_task)
+                return
+
+            index += 1
 
     async def action_refresh_tasks(self):
         """Refresh the task list from the Gradle project (non-blocking).
@@ -434,15 +563,22 @@ class GradleProjectTaskViewer(Static):
         if search_query:
             self.filtered_tasks = [
                 task for task in self.tasks
-                if search_query in task.name.lower() or search_query in task.description.lower()
+                if (task.name or "").strip()
+                and (
+                    search_query in task.name.lower()
+                    or search_query in task.description.lower()
+                )
             ]
         else:
-            self.filtered_tasks = self.tasks
+            self.filtered_tasks = [task for task in self.tasks if (task.name or "").strip()]
 
         if self.task_option_list:
             self.task_option_list.clear_options()
             for task in self.filtered_tasks:
-                self.task_option_list.add_option(Option(task.name))
+                task_name = (task.name or "").strip()
+                if not task_name:
+                    continue
+                self.task_option_list.add_option(Option(task_name))
 
             self.task_name_label.update(f"[bold green]✓ Refreshed {len(self.tasks)} tasks[/bold green]")
             self.description_widget.update("[dim]Select a task from the list to view its description.[/dim]")
@@ -491,6 +627,27 @@ class GradleProjectTaskViewer(Static):
     async def action_run_task(self):
         """Action handler for 'r' key to run the selected task."""
         logging.info(f"action_run_task called, selected_task: {self.selected_task}")
+        if self.search_input and getattr(self.search_input, "has_focus", False):
+            self._focus_first_task_result()
+            return
+        if self.task_option_list and getattr(self.task_option_list, "has_focus", False):
+            task_name = ""
+            try:
+                highlighted = int(getattr(self.task_option_list, "highlighted", 0) or 0)
+                option = self.task_option_list.get_option_at_index(highlighted)
+                task_name = (getattr(option, "prompt", "") or "").strip()
+            except Exception:
+                task_name = ""
+
+            if task_name:
+                self.selected_task = next(
+                    (task for task in self.tasks if (task.name or "").strip() == task_name),
+                    None,
+                )
+                if self.selected_task:
+                    self.update_task_description(self.selected_task)
+                    await self.run_task()
+                    return
         if self.selected_task:
             await self.run_task()
         else:
@@ -553,6 +710,15 @@ class GradleProjectTaskViewer(Static):
                             await self.run_task()
                 except (ValueError, IndexError) as e:
                     logging.error(f"Error parsing recent task ID: {e}")
+            return
+
+        # Main task list: selecting with Enter should behave like pressing "r".
+        if event.option_list.id == "task-option-list":
+            task_name = (event.option.prompt or "").strip()
+            self.selected_task = next((task for task in self.tasks if (task.name or "").strip() == task_name), None)
+            if self.selected_task:
+                self.update_task_description(self.selected_task)
+                await self.run_task()
             return
 
         task_name = event.option.prompt
@@ -647,14 +813,22 @@ class GradleProjectTaskViewer(Static):
             def on_stdout(line: str):
                 logging.debug(f"Callback stdout: {line}")
                 try:
-                    loop.call_soon_threadsafe(task_manager.append_output_to_task, task_id, line)
+                    loop.call_soon_threadsafe(
+                        task_manager.append_output_to_task,
+                        task_id,
+                        escape(line),
+                    )
                 except Exception as e:
                     logging.error(f"Error in on_stdout callback: {e}", exc_info=True)
 
             def on_stderr(line: str):
                 logging.debug(f"Callback stderr: {line}")
                 try:
-                    loop.call_soon_threadsafe(task_manager.append_output_to_task, task_id, f"[red]{line}[/red]")
+                    loop.call_soon_threadsafe(
+                        task_manager.append_output_to_task,
+                        task_id,
+                        f"[red]{escape(line)}[/red]",
+                    )
                 except Exception as e:
                     logging.error(f"Error in on_stderr callback: {e}", exc_info=True)
 
@@ -762,14 +936,22 @@ class GradleProjectTaskViewer(Static):
         def on_stdout(line: str):
             logging.debug(f"Callback stdout: {line}")
             try:
-                loop.call_soon_threadsafe(task_manager.append_output_to_task, task_id, line)
+                loop.call_soon_threadsafe(
+                    task_manager.append_output_to_task,
+                    task_id,
+                    escape(line),
+                )
             except Exception as e:
                 logging.error(f"Error in on_stdout callback: {e}", exc_info=True)
 
         def on_stderr(line: str):
             logging.debug(f"Callback stderr: {line}")
             try:
-                loop.call_soon_threadsafe(task_manager.append_output_to_task, task_id, f"[red]{line}[/red]")
+                loop.call_soon_threadsafe(
+                    task_manager.append_output_to_task,
+                    task_id,
+                    f"[red]{escape(line)}[/red]",
+                )
             except Exception as e:
                 logging.error(f"Error in on_stderr callback: {e}", exc_info=True)
 
