@@ -113,6 +113,22 @@ To get LazyGradle up and running on your local machine, follow these simple step
    python app.py
    ```
 
+### Optional Logging
+
+Logging is disabled by default. To enable file logging, set `LAZYGRADLE_LOG_FILE`.
+
+```sh
+LAZYGRADLE_LOG_FILE=1 python app.py
+```
+
+That writes logs to `lazygradleapp.log` in the current directory. You can also provide an explicit path:
+
+```sh
+LAZYGRADLE_LOG_FILE=~/.local/state/lazygradle/app.log python app.py
+```
+
+`LAZYGRADLE_LOG_LEVEL` is also supported and defaults to `DEBUG` when logging is enabled.
+
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 <!-- USAGE EXAMPLES -->

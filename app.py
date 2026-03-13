@@ -1,15 +1,8 @@
-import logging
 from gradle.gradle_manager import GradleManager
+from logging_config import configure_logging
 from ui.lazy_gradle_app import LazyGradleApp
 
-# Configure logging to file only - no console output to avoid interfering with TUI
-logging.basicConfig(
-    level=logging.DEBUG,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    handlers=[
-        logging.FileHandler("lazygradleapp.log")  # Log to a file only
-    ],
-)
+configure_logging()
 
 
 def main():
