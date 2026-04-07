@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "lazygradle"
-version = "1.1.9"
+version = "1.1.10"
 description = "A TUI for managing and running your Gradle tasks"
 readme = "README.md"
 requires-python = ">=3.13"
@@ -33,7 +33,7 @@ Issues = "https://github.com/jacob-sabella/lazygradle/issues"
 lazygradle = "app:main"
 
 [tool.setuptools]
-py-modules = ["app"]
+py-modules = ["app", "logging_config"]
 
 [tool.setuptools.packages.find]
 include = ["ui*", "gradle*"]
