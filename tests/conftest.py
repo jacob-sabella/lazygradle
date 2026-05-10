@@ -44,3 +44,11 @@ def gm(tmp_path, monkeypatch):
         GradleManager, "CONFIG_FILE", cfg_dir / "gradle_cache.json", raising=True
     )
     return GradleManager()
+
+
+@pytest.fixture
+def gm_with_sample(gm, sample_project):
+    """GradleManager pre-loaded with the fixture project + its tasks cached."""
+    gm.add_project(str(sample_project))
+    gm.update_project_tasks(str(sample_project))
+    return gm

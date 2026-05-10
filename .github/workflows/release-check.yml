@@ -1,0 +1,59 @@
+name: Release Check
+
+# Full pre-release validation: pytest, pip-audit, build, twine check.
+# Triggers on:
+#   - Tag pushes (v*) — gates the upload to PyPI when wired into branch
+#     protection / required checks.
+#   - workflow_dispatch — run manually from the Actions tab before tagging.
+#   - pull_request to main — keeps the suite honest on every change.
+#
+# Sibling workflow `python-publish.yml` runs on `release: published`. To
+# gate publish, set this workflow as a required status check for the tag
+# ref via branch / tag protection rules in the repo settings.
+
+on:
+  push:
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  release-check:
+    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Cache Gradle distribution
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/wrapper/dists
+            ~/.gradle/caches
+          key: ${{ runner.os }}-gradle-${{ hashFiles('tests/fixtures/sample-project/gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Install dev dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-dev.txt
+
+      - name: Run release-check
+        run: bash scripts/release-check.sh
