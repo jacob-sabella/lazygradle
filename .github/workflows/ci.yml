@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    # Skip workflow runs from fork PRs — only repo-internal pushes / PRs run.
+    # Combined with branch-protection "Require approval for first-time
+    # contributors" / "Require approval for all outside collaborators",
+    # this means only the repo owner can trigger CI.
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            name: Linux
+          - os: windows-latest
+            name: Windows
+    runs-on: ${{ matrix.os }}
+    name: ${{ matrix.name }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip install build
+
+      - name: Syntax check
+        run: python -m compileall -q app.py logging_config.py ui gradle
+
+      - name: Import smoke test
+        run: python -c "import app"
+
+      - name: Build sdist + wheel
+        run: python -m build

@@ -1,0 +1,5 @@
+# Code ownership. Used in conjunction with branch protection's
+# "Require review from Code Owners" rule so every PR into `main`
+# needs the owner's explicit approval before it can merge.
+
+* @jacob-sabella

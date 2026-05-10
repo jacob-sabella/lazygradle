@@ -1,0 +1,37 @@
+name: Security Audit
+
+# Runs `pip-audit` against the project's declared dependencies to flag
+# known PyPA advisories. Triggers on every push to main, every dep-file
+# change in PRs, and weekly so newly disclosed advisories surface even
+# when the dep tree is quiet.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'requirements.txt'
+      - 'pyproject.toml'
+      - '.github/workflows/audit.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'requirements.txt'
+      - 'pyproject.toml'
+  schedule:
+    - cron: '0 6 * * 1'
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install pip-audit
+        run: python -m pip install --upgrade pip pip-audit
+      - name: Audit declared dependencies
+        run: pip-audit -r requirements.txt --strict
