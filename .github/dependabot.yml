@@ -8,6 +8,10 @@ updates:
     open-pull-requests-limit: 5
     reviewers:
       - jacob-sabella
+    groups:
+      python-deps:
+        patterns:
+          - "*"
 
   - package-ecosystem: github-actions
     directory: "/"
@@ -17,3 +21,7 @@ updates:
     open-pull-requests-limit: 3
     reviewers:
       - jacob-sabella
+    groups:
+      actions:
+        patterns:
+          - "*"
