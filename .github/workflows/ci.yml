@@ -1,5 +1,10 @@
 name: CI
 
+# Cross-platform build sanity. Validates that the package compiles,
+# imports, and packages cleanly on Linux and Windows. Functional tests
+# (pytest, pip-audit, twine) live in `release-check.yml` to avoid
+# running them twice per PR — that workflow runs on the same triggers.
+
 on:
   push:
     branches: [main]
@@ -14,7 +19,7 @@ permissions:
   contents: read
 
 jobs:
-  test:
+  build:
     # Skip workflow runs from fork PRs — only repo-internal pushes / PRs run.
     # Combined with branch-protection "Require approval for first-time
     # contributors" / "Require approval for all outside collaborators",
