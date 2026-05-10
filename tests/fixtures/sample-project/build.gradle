@@ -1,0 +1,37 @@
+// Fixture project for lazygradle's test suite.
+// Defines a small set of tasks covering the major lazygradle code paths:
+// streaming output, task params, failure handling, and long-running cancel.
+
+tasks.register('hello') {
+    group = 'fixture'
+    description = 'Prints a single line of output and exits 0.'
+    doLast { println 'Hello from sample' }
+}
+
+tasks.register('slow') {
+    group = 'fixture'
+    description = 'Streams 5 lines over ~1.5s — exercises streaming + cancel.'
+    doLast {
+        (1..5).each { i ->
+            println "line ${i} of 5"
+            System.out.flush()
+            Thread.sleep(300)
+        }
+    }
+}
+
+tasks.register('failing') {
+    group = 'fixture'
+    description = 'Exits non-zero — exercises GradleError surface.'
+    doLast { throw new GradleException('intentional fixture failure') }
+}
+
+tasks.register('withParams') {
+    group = 'fixture'
+    description = 'Echoes -P parameters back — exercises run-with-params modal.'
+    doLast {
+        def foo = project.findProperty('foo') ?: '<unset>'
+        def bar = project.findProperty('bar') ?: '<unset>'
+        println "foo=${foo} bar=${bar}"
+    }
+}
