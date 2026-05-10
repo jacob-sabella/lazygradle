@@ -1,5 +1,10 @@
 name: CI
 
+# Cross-platform build sanity. Validates that the package compiles,
+# imports, and packages cleanly on Linux and Windows. Functional tests
+# (pytest, pip-audit, twine) live in `release-check.yml` to avoid
+# running them twice per PR — that workflow runs on the same triggers.
+
 on:
   push:
     branches: [main]
@@ -14,7 +19,7 @@ permissions:
   contents: read
 
 jobs:
-  test:
+  build:
     # Skip workflow runs from fork PRs — only repo-internal pushes / PRs run.
     # Combined with branch-protection "Require approval for first-time
     # contributors" / "Require approval for all outside collaborators",
@@ -38,42 +43,17 @@ jobs:
           python-version: "3.13"
           cache: pip
 
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "21"
-
-      - name: Cache Gradle distribution
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/wrapper/dists
-            ~/.gradle/caches
-          key: ${{ runner.os }}-gradle-${{ hashFiles('tests/fixtures/sample-project/gradle/wrapper/gradle-wrapper.properties') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-
-
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -r requirements-dev.txt
+          python -m pip install -r requirements.txt
+          python -m pip install build
 
       - name: Syntax check
         run: python -m compileall -q app.py logging_config.py ui gradle
 
       - name: Import smoke test
         run: python -c "import app"
-
-      # Functional tests run on Linux only. The pytest suite drives a real
-      # `./gradlew` against a fixture project; on Windows `subprocess` needs
-      # the `.bat` form, which lazygradle's runtime path doesn't use, and
-      # making the suite cross-platform would mask the regression CLAUDE.md
-      # warns about ("never use shell=True; use ./gradlew not gradlew").
-      # Linux still gates merges on the full functional suite.
-      - name: Run tests
-        if: runner.os == 'Linux'
-        run: python -m pytest
 
       - name: Build sdist + wheel
         run: python -m build
