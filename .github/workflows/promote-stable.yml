@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Promote eligible beta releases
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const BETA_SUFFIX = '-beta';
