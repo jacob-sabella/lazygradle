@@ -1,0 +1,103 @@
+name: Stable Release
+
+# Deliberate promotion of the current main to a final PEP 440 release. Run it
+# from the Actions tab when the accumulated beta line (feature work + the
+# Dependabot updates that have soaked on the beta channel) is ready to ship:
+#
+#   pyproject base 1.3.0  ->  GitHub release v1.3.0 (final)  ->  PyPI 1.3.0
+#
+# After tagging, it opens a PR bumping pyproject to the next development base
+# (default: patch) so the next merge to main starts a fresh beta line. The
+# PyPI upload itself happens in python-publish.yml on `release: published`.
+
+on:
+  workflow_dispatch:
+    inputs:
+      next:
+        description: 'Next development base to set after this release'
+        type: choice
+        default: patch
+        options:
+          - patch
+          - minor
+          - major
+
+concurrency:
+  group: release-stable
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    uses: ./.github/workflows/release-check.yml
+
+  publish-stable:
+    needs: validate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          token: ${{ secrets.RELEASE_TOKEN }}
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Compute versions
+        id: ver
+        run: |
+          VERSION="$(python scripts/set-version.py --base)"
+          NEXT="$(python scripts/set-version.py --bump ${{ inputs.next }})"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag=v${VERSION}"    >> "$GITHUB_OUTPUT"
+          echo "next=${NEXT}"       >> "$GITHUB_OUTPUT"
+
+      - name: Guard against re-releasing an existing version
+        run: |
+          if git ls-remote --exit-code --tags origin "refs/tags/${{ steps.ver.outputs.tag }}" >/dev/null 2>&1; then
+            echo "::error::Tag ${{ steps.ver.outputs.tag }} already exists. Bump the base in pyproject.toml before releasing."
+            exit 1
+          fi
+
+      - name: Tag and publish GitHub release
+        uses: actions/github-script@v9
+        with:
+          # PAT so the `release: published` event reaches python-publish.yml.
+          github-token: ${{ secrets.RELEASE_TOKEN }}
+          script: |
+            await github.rest.repos.createRelease({
+              owner: context.repo.owner,
+              repo:  context.repo.repo,
+              tag_name:         '${{ steps.ver.outputs.tag }}',
+              target_commitish: context.sha,
+              name:             '${{ steps.ver.outputs.version }}',
+              generate_release_notes: true,
+              prerelease: false,
+              draft:      false,
+            });
+
+      - name: Open next-development-version bump PR
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        run: |
+          set -euo pipefail
+          NEXT="${{ steps.ver.outputs.next }}"
+          BRANCH="chore/next-after-${{ steps.ver.outputs.version }}"
+
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+
+          python scripts/set-version.py "$NEXT"
+          git add pyproject.toml
+          git commit -m "chore(release): start ${NEXT} development"
+          git push -u origin "$BRANCH"
+
+          gh pr create --base main --head "$BRANCH" \
+            --title "chore(release): start ${NEXT} development" \
+            --body "Post-release housekeeping for \`${{ steps.ver.outputs.tag }}\`. Bumps the development base to \`${NEXT}\`; the next merge to main cuts \`${NEXT}b<run>\` on the beta channel."

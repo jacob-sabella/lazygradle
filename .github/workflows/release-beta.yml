@@ -1,0 +1,76 @@
+name: Beta Release
+
+# Continuous pre-release channel. Every merge to main — feature work and the
+# batched weekly Dependabot updates alike — is validated and cut as a PEP 440
+# beta derived from the pyproject base version:
+#
+#   base 1.3.0  +  run_number 412   ->   1.3.0b412
+#
+# The beta is tagged and published as a GitHub pre-release, which fires
+# python-publish.yml (release: published) to upload it to PyPI. Pip hides
+# pre-releases from normal installs; testers opt in explicitly:
+#
+#   pip install --pre lazygradle
+#
+# Final/stable releases are cut deliberately via release-stable.yml.
+
+on:
+  push:
+    branches: [main]
+    # Docs, screenshots, IDE config, and workflow edits don't warrant a build.
+    paths-ignore:
+      - '**/*.md'
+      - 'screenshots/**'
+      - '.idea/**'
+      - 'LICENSE'
+      - '.github/**'
+
+concurrency:
+  # Serialize beta releases; never cancel one mid-publish.
+  group: release-beta
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    uses: ./.github/workflows/release-check.yml
+
+  publish-beta:
+    needs: validate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Compute beta version
+        id: ver
+        run: |
+          BASE="$(python scripts/set-version.py --base)"
+          VERSION="${BASE}b${{ github.run_number }}"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag=v${VERSION}"    >> "$GITHUB_OUTPUT"
+
+      - name: Tag and publish GitHub pre-release
+        uses: actions/github-script@v9
+        with:
+          # A PAT (not GITHUB_TOKEN) so the resulting `release: published`
+          # event triggers python-publish.yml.
+          github-token: ${{ secrets.RELEASE_TOKEN }}
+          script: |
+            await github.rest.repos.createRelease({
+              owner: context.repo.owner,
+              repo:  context.repo.repo,
+              tag_name:         '${{ steps.ver.outputs.tag }}',
+              target_commitish: context.sha,
+              name:             'Beta ${{ steps.ver.outputs.version }}',
+              generate_release_notes: true,
+              prerelease: true,
+              draft:      false,
+            });
