@@ -24,6 +24,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          token: ${{ secrets.RELEASE_TOKEN }}
 
       - name: Compute CalVer version
         id: ver
@@ -40,6 +42,7 @@ jobs:
       - name: Create GitHub pre-release (beta)
         uses: actions/github-script@v7
         with:
+          github-token: ${{ secrets.RELEASE_TOKEN }}
           script: |
             const promoteDate = new Date(Date.now() + 14*24*60*60*1000)
               .toISOString().slice(0, 10);
