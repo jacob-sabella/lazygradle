@@ -1,0 +1,89 @@
+name: Release (Beta)
+
+# Fires on every push to main that isn't a bot version-bump commit.
+# Computes a CalVer tag (vYYYY.M.D.{run_number}), creates a GitHub pre-release,
+# and updates pyproject.toml — the version-bump commit carries [skip ci] so it
+# doesn't re-trigger this workflow.
+#
+# The pre-release sits in beta for 14 days; promote-stable.yml then flips it
+# to a full release (which triggers python-publish.yml to push to PyPI).
+#
+# Required repo setting: Settings → Actions → General →
+#   "Allow GitHub Actions to create and approve pull requests" = ON
+#   Workflow permissions = "Read and write permissions"
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  beta-release:
+    runs-on: ubuntu-latest
+    if: "!contains(github.event.head_commit.message, '[skip ci]')"
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compute CalVer version
+        id: ver
+        run: |
+          VERSION="$(date -u +'%Y.%-m.%-d').${{ github.run_number }}"
+          echo "version=${VERSION}"       >> $GITHUB_OUTPUT
+          echo "beta_tag=v${VERSION}-beta" >> $GITHUB_OUTPUT
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Stamp version into pyproject.toml
+        run: |
+          python - <<'PY'
+          import re, pathlib
+          p = pathlib.Path("pyproject.toml")
+          text = p.read_text()
+          text = re.sub(r'^version = ".*"', 'version = "${{ steps.ver.outputs.version }}"', text, flags=re.MULTILINE)
+          p.write_text(text)
+          PY
+
+      - name: Configure git identity
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Commit version bump, tag, and push
+        run: |
+          git add pyproject.toml
+          git commit -m "chore: bump version to ${{ steps.ver.outputs.version }} [skip ci]"
+          git tag "${{ steps.ver.outputs.beta_tag }}"
+          git push origin main
+          git push origin "${{ steps.ver.outputs.beta_tag }}"
+
+      - name: Create GitHub pre-release (beta)
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const promoteDate = new Date(Date.now() + 14*24*60*60*1000)
+              .toISOString().slice(0, 10);
+            await github.rest.repos.createRelease({
+              owner: context.repo.owner,
+              repo:  context.repo.repo,
+              tag_name:   '${{ steps.ver.outputs.beta_tag }}',
+              name:        'Beta ${{ steps.ver.outputs.version }}',
+              body: [
+                '## Beta release — promotes to stable on ' + promoteDate,
+                '',
+                '**Commit**: ' + context.sha,
+                '**Triggered by**: ' + context.actor,
+              ].join('\n'),
+              prerelease: true,
+              draft:      false,
+            });
