@@ -7,10 +7,10 @@
 #   2. pip-audit       — known PyPA advisories on declared dependencies
 #   3. python -m build — sdist + wheel
 #   4. twine check     — long-description renders cleanly on PyPI
-#   5. capture script  — re-renders README screenshots if the script is
-#                        present (skipped silently if not)
 #
-# Exits non-zero on the first failure. Run from repo root.
+# Exits non-zero on the first failure. Run from repo root. README screenshots
+# are a documentation concern (scripts/capture_readme_screenshots.py), not a
+# release gate, so they are intentionally not regenerated here.
 
 set -euo pipefail
 
@@ -28,13 +28,6 @@ python -m build
 
 echo "==> twine check"
 python -m twine check dist/*
-
-if [ -f scripts/capture_readme_screenshots.py ]; then
-    echo "==> capture_readme_screenshots"
-    python scripts/capture_readme_screenshots.py
-else
-    echo "==> capture_readme_screenshots (skipped, script not present)"
-fi
 
 echo
 echo "release-check: PASS"

@@ -1,22 +1,18 @@
 name: Release Check
 
-# Full pre-release validation: pytest, pip-audit, build, twine check.
-# Triggers on:
-#   - Tag pushes (v*) — gates the upload to PyPI when wired into branch
-#     protection / required checks.
-#   - workflow_dispatch — run manually from the Actions tab before tagging.
-#   - pull_request to main — keeps the suite honest on every change.
+# Full pre-release validation: pytest (functional suite against the Gradle
+# fixture), pip-audit, build, and twine check.
 #
-# Sibling workflow `python-publish.yml` runs on `release: published`. To
-# gate publish, set this workflow as a required status check for the tag
-# ref via branch / tag protection rules in the repo settings.
+# Runs on:
+#   - pull_request to main — keeps every change honest.
+#   - workflow_call        — reused as the gate by release-beta.yml and
+#                            release-stable.yml; a red run blocks the release.
+#   - workflow_dispatch    — run manually from the Actions tab.
 
 on:
-  push:
-    tags:
-      - 'v*'
   pull_request:
     branches: [main]
+  workflow_call:
   workflow_dispatch:
 
 permissions:
@@ -25,6 +21,8 @@ permissions:
 jobs:
   release-check:
     runs-on: ubuntu-latest
+    # Skip fork PRs (secrets/permissions aren't available); internal pushes,
+    # reused calls, and manual runs always proceed.
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     steps:
       - uses: actions/checkout@v7
