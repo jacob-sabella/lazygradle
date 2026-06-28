@@ -1,2 +1,2 @@
-textual~=8.2.7
+textual~=8.2
 pyperclip==1.11.0
