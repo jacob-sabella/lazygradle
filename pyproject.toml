@@ -22,7 +22,7 @@ classifiers = [
 keywords = ["gradle", "tui", "build-tool", "terminal"]
 
 dependencies = [
-    "textual>=8.2,<9",
+    "textual>=8.2.7,<9",
     "pyperclip>=1.11.0",
 ]
 
