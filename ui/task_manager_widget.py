@@ -3,7 +3,7 @@ from rich.markup import escape
 from textual.app import ComposeResult
 from textual import events
 from textual.binding import Binding
-from textual.containers import Horizontal, Vertical
+from textual.containers import Horizontal, ScrollableContainer, Vertical
 from textual.widget import Widget
 from textual.widgets import Static, OptionList, Button
 from textual.widgets._option_list import Option
@@ -70,14 +70,19 @@ class TaskManagerWidget(Widget):
                     classes="task-output-status",
                 )
                 yield self.output_status
-                self.output_log = TaskOutputViewer(
-                    id="task-manager-log",
+                with ScrollableContainer(
+                    id="task-manager-log-scroll",
                     classes="task-manager-output",
-                    on_status=self._set_output_status,
-                    focus_router=self._focus_output_neighbor,
-                    on_state_change=self._update_output_guide,
-                )
-                yield self.output_log
+                    can_focus=False,
+                ):
+                    self.output_log = TaskOutputViewer(
+                        id="task-manager-log",
+                        classes="task-output-lines",
+                        on_status=self._set_output_status,
+                        focus_router=self._focus_output_neighbor,
+                        on_state_change=self._update_output_guide,
+                    )
+                    yield self.output_log
 
     def on_click(self, event: events.Click) -> None:
         control = event.control

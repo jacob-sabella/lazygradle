@@ -6,6 +6,7 @@ import threading
 from typing import Callable, Optional
 
 from textual import events
+from textual.containers import ScrollableContainer
 from textual.widgets import Static
 
 try:
@@ -15,7 +16,11 @@ except ImportError:
 
 
 class TaskOutputViewer(Static):
-    """Scrollable task output viewer with vim-like navigation and yanking."""
+    """Task output viewer with vim-like navigation and yanking.
+
+    The viewer renders every line at full height; mount it inside a
+    ScrollableContainer, which does the actual scrolling.
+    """
 
     can_focus = True
 
@@ -74,7 +79,7 @@ class TaskOutputViewer(Static):
         self.lines.append(line)
         self.current_line = self._clamp_line(self.current_line)
         self._refresh_display()
-        self.scroll_end(animate=False)
+        self._scroller().scroll_end(animate=False)
 
     def clear(self) -> None:
         self.lines = []
@@ -149,11 +154,11 @@ class TaskOutputViewer(Static):
             self._stop_event(event)
             return
         if key == "left":
-            self.scroll_relative(x=-4, animate=False)
+            self._scroller().scroll_relative(x=-4, animate=False)
             self._stop_event(event)
             return
         if key == "right":
-            self.scroll_relative(x=4, animate=False)
+            self._scroller().scroll_relative(x=4, animate=False)
             self._stop_event(event)
             return
 
@@ -193,9 +198,9 @@ class TaskOutputViewer(Static):
         elif character == "k":
             self._move_cursor(-1)
         elif character == "h":
-            self.scroll_relative(x=-4, animate=False)
+            self._scroller().scroll_relative(x=-4, animate=False)
         elif character == "l":
-            self.scroll_relative(x=4, animate=False)
+            self._scroller().scroll_relative(x=4, animate=False)
         elif character == "v":
             self._toggle_visual_mode()
         elif character == "G":
@@ -205,9 +210,9 @@ class TaskOutputViewer(Static):
         elif character == "-" or key == "minus":
             self._adjust_zoom(-1)
         elif character == "0":
-            self.scroll_to(x=0, animate=False)
+            self._scroller().scroll_to(x=0, animate=False)
         elif character == "$":
-            self.scroll_to(x=10_000, animate=False)
+            self._scroller().scroll_to(x=10_000, animate=False)
         elif key == "ctrl+d":
             self._page_cursor(0.5)
         elif key == "ctrl+u":
@@ -233,8 +238,16 @@ class TaskOutputViewer(Static):
             self._refresh_display()
             self._set_status(f"Output zoom: {self.zoom_level:+d}", is_error=False)
 
+    def _scroller(self):
+        """The container that scrolls this viewer (itself when not wrapped)."""
+        parent = self.parent
+        return parent if isinstance(parent, ScrollableContainer) else self
+
+    def _viewport_height(self) -> int:
+        return max(1, self._scroller().scrollable_content_region.height)
+
     def _page_cursor(self, page_factor: float) -> None:
-        page_size = max(1, self.size.height - 4) if hasattr(self, "size") else 10
+        page_size = max(1, self._viewport_height() - 2)
         self._move_cursor(int(page_size * page_factor))
 
     def _move_cursor(self, delta: int) -> None:
@@ -246,8 +259,20 @@ class TaskOutputViewer(Static):
         self._scroll_to_cursor()
 
     def _scroll_to_cursor(self) -> None:
+        """Scroll just enough to keep the cursor line visible."""
         try:
-            self.scroll_to(y=max(self.current_line, 0), animate=False)
+            scroller = self._scroller()
+            line_y = self._render_vertical_pad + max(self.current_line, 0)
+            top = int(scroller.scroll_y)
+            height = self._viewport_height()
+            if self.current_line <= 0:
+                scroller.scroll_home(animate=False)
+            elif self.current_line >= len(self.lines) - 1:
+                scroller.scroll_end(animate=False)
+            elif line_y < top:
+                scroller.scroll_to(y=line_y, animate=False)
+            elif line_y >= top + height:
+                scroller.scroll_to(y=line_y - height + 1, animate=False)
         except Exception as error:
             logging.debug(f"Failed to scroll output viewer: {error}")
 
@@ -259,7 +284,9 @@ class TaskOutputViewer(Static):
     def _line_from_y(self, y: int) -> int:
         if not self.lines:
             return 0
-        scroll_y = int(getattr(self, "scroll_y", 0) or 0)
+        # Mouse y is relative to this widget, which already accounts for the
+        # container's scroll offset when wrapped.
+        scroll_y = 0 if self._scroller() is not self else int(getattr(self, "scroll_y", 0) or 0)
         local_y = int(y) + scroll_y
         vertical_pad = int(getattr(self, "_render_vertical_pad", 0) or 0)
         line_block = max(1, int(getattr(self, "_render_line_block", 1) or 1))
@@ -272,10 +299,8 @@ class TaskOutputViewer(Static):
         self.visual_mode = enabled
         self.visual_anchor = self._clamp_line(anchor) if enabled and anchor is not None else None
         if hasattr(self, "add_class") and hasattr(self, "remove_class"):
-            if enabled:
-                self.add_class("visual-mode")
-            else:
-                self.remove_class("visual-mode")
+            for widget in {self, self._scroller()}:
+                widget.set_class(enabled, "visual-mode")
         if self.on_state_change:
             self.on_state_change()
 

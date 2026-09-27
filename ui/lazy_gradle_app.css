@@ -529,7 +529,7 @@ RichLog {
   padding: 0;
 }
 
-.task-manager-output:focus {
+.task-manager-output:focus-within {
   border: solid $accent;
 }
 
@@ -537,10 +537,11 @@ RichLog {
   border: solid $warning;
 }
 
-.task-output-body {
-  width: 100%;
+/* Output lines render at full size; the .task-manager-output container scrolls them */
+.task-output-lines {
+  width: auto;
+  min-width: 100%;
   height: auto;
-  padding: 0 1;
 }
 
 /* =============================================================================
