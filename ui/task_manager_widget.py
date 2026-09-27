@@ -15,9 +15,12 @@ from ui.task_output_viewer import TaskOutputViewer
 class TaskManagerWidget(Widget):
     """Widget for displaying task execution history and output."""
 
+    EMPTY_OUTPUT_HINT = "[dim]Pick a run from Task History to see its output.[/dim]"
+    NON_TASK_IDS = {"no-tasks", "running-header", "history-header"}
+
     BINDINGS = [
-        Binding("c", "cancel_task", "Cancel Task"),
-        Binding("C", "clear_history", "Clear History"),
+        Binding("c", "cancel_task", "Cancel"),
+        Binding("C", "clear_history", "Clear history"),
         Binding("ctrl+h", "focus_left_pane", show=False, priority=True),
         Binding("ctrl+j", "focus_down_pane", show=False, priority=True),
         Binding("ctrl+k", "focus_up_pane", show=False, priority=True),
@@ -53,7 +56,7 @@ class TaskManagerWidget(Widget):
             with Vertical(classes="task-list-panel") as task_list_panel:
                 self.task_list_panel = task_list_panel
                 yield Static("Task History", classes="section-title")
-                yield Button("Clear History", id="clear-history-btn", variant="warning", classes="clear-history-button")
+                yield Button("Clear History (C)", id="clear-history-btn", variant="default", classes="clear-history-button")
                 self.task_list = OptionList(id="task-list", classes="task-manager-list")
                 yield self.task_list
 
@@ -62,7 +65,7 @@ class TaskManagerWidget(Widget):
                 self.task_output_panel = task_output_panel
                 yield Static("Task Output", id="task-output-title", classes="section-title")
                 self.output_status = Static(
-                    "Output viewer has Vim-style motions; press v/y to select/yank.",
+                    "",
                     id="task-output-status",
                     classes="task-output-status",
                 )
@@ -104,7 +107,7 @@ class TaskManagerWidget(Widget):
                 if hasattr(self.task_tracker, "gradle_manager")
                 else None
             )
-            self.output_log.set_lines(["Select a task to view its output"])
+            self.output_log.set_lines([self.EMPTY_OUTPUT_HINT])
         self._update_output_guide()
         self._refresh_task_list()
         if self.task_list:
@@ -116,19 +119,16 @@ class TaskManagerWidget(Widget):
             return ""
         in_output = self.app and getattr(self.app, "focused", None) is viewer
         if viewer.visual_mode:
-            prefix = "VISUAL" if in_output else "VISUAL (output)"
-            return (
-                f"[dim]{prefix}: j/k or arrows move, y yank selection, Esc exit, v toggle[/]"
-            )
-        prefix = "OUTPUT" if in_output else "OUTPUT (focus)"
-        return (
-            f"[dim]{prefix}: j/k or arrows move, h/l or arrows scroll, v visual, yy yank line, +/- zoom (readability)[/]"
-        )
+            return "[bold $text-warning]VISUAL[/]  [dim]j/k extend · y yank · Esc exit[/]"
+        if in_output:
+            return "[bold $text-accent]OUTPUT[/]  [dim]j/k move · h/l scroll · v visual · yy yank · +/- zoom[/]"
+        return "[dim]Ctrl+l focuses the output · j/k move · v visual · yy yank[/]"
 
     def _update_output_guide(self) -> None:
         if not self.output_status:
             return
         self.output_status.update(self._output_guide_text())
+
     def _on_tasks_updated(self):
         """Callback when tasks are updated."""
         if not self.is_mounted:
@@ -170,83 +170,58 @@ class TaskManagerWidget(Widget):
         # Add running tasks section
         if running_tasks:
             self.task_list.add_option(Option(
-                "[bold]Running Tasks[/bold]",
+                "[bold $text-muted]Running[/]",
                 id="running-header",
                 disabled=True
             ))
             for task in running_tasks:
-                status_icon = self._get_status_icon(task.status)
-                duration = task.get_duration()
-                display_name = escape(task.get_display_name())
-                label = f"{status_icon} [bold cyan]{display_name}[/bold cyan] - {duration}"
-                self.task_list.add_option(Option(label, id=task.task_id))
-
-        # Add separator if we have both sections
-        if running_tasks and completed_tasks:
-            self.task_list.add_option(Option(
-                "[dim]" + "─" * 40 + "[/dim]",
-                id="separator",
-                disabled=True
-            ))
+                self.task_list.add_option(Option(self._task_label(task), id=task.task_id))
 
         # Add history section
         if completed_tasks:
             self.task_list.add_option(Option(
-                "[bold]History[/bold]",
+                ("\n" if running_tasks else "") + "[bold $text-muted]History[/]",
                 id="history-header",
                 disabled=True
             ))
             for task in completed_tasks:
-                status_icon = self._get_status_icon(task.status)
-                duration = task.get_duration()
-                display_name = escape(task.get_display_name())
-
-                if task.status == TaskStatus.COMPLETED:
-                    label = f"{status_icon} {display_name} - {duration}"
-                elif task.status == TaskStatus.FAILED:
-                    label = f"{status_icon} [red]{display_name}[/red] - {duration}"
-                else:
-                    label = f"{status_icon} {display_name} - {duration}"
-
-                self.task_list.add_option(Option(label, id=task.task_id))
+                self.task_list.add_option(Option(self._task_label(task), id=task.task_id))
 
         # Restore selection if possible
         if current_selection:
-            try:
-                # Search in running tasks first
-                for idx, task in enumerate(running_tasks):
-                    if task.task_id == current_selection:
-                        # Position = "Running Tasks" header (1) + task index
-                        actual_idx = 1 + idx
-                        self.task_list.highlighted = actual_idx
-                        return
+            self._highlight_task(current_selection)
 
-                # Search in completed tasks
-                for idx, task in enumerate(completed_tasks):
-                    if task.task_id == current_selection:
-                        # Position = headers + running tasks + separators
-                        actual_idx = 0
-                        if running_tasks:
-                            actual_idx += 1  # "Running Tasks" header
-                            actual_idx += len(running_tasks)  # all running tasks
-                            actual_idx += 1  # separator
-                        actual_idx += 1  # "History" header
-                        actual_idx += idx  # position in completed tasks
-                        self.task_list.highlighted = actual_idx
-                        return
-            except Exception as e:
-                logging.debug(f"Could not restore selection: {e}")
+    def _task_label(self, task) -> str:
+        """Status glyph, name, and dimmed duration for one history row."""
+        name = escape(task.get_display_name())
+        icon = self._get_status_icon(task.status)
+        if task.status == TaskStatus.RUNNING:
+            name = f"[bold $text-accent]{name}[/]"
+        elif task.status == TaskStatus.FAILED:
+            name = f"[$text-error]{name}[/]"
+        elif task.status == TaskStatus.CANCELLED:
+            name = f"[$text-warning]{name}[/]"
+        return f"{icon} {name} [dim]{task.get_duration()}[/dim]"
+
+    def _highlight_task(self, task_id: str) -> bool:
+        """Highlight a task row by its id; returns False if it is not listed."""
+        try:
+            self.task_list.highlighted = self.task_list.get_option_index(task_id)
+        except Exception as e:
+            logging.debug(f"Could not highlight task {task_id}: {e}")
+            return False
+        return True
 
     def _get_status_icon(self, status: TaskStatus) -> str:
         """Get icon for task status."""
         if status == TaskStatus.RUNNING:
-            return "▶"
+            return "[$text-accent]▶[/]"
         elif status == TaskStatus.COMPLETED:
-            return "✓"
+            return "[$text-success]✓[/]"
         elif status == TaskStatus.FAILED:
-            return "✗"
+            return "[$text-error]✗[/]"
         elif status == TaskStatus.CANCELLED:
-            return "⚠"
+            return "[$text-warning]⚠[/]"
         return "•"
 
     def _refresh_output(self):
@@ -259,22 +234,22 @@ class TaskManagerWidget(Widget):
             return
 
         # Header
-        lines = [
-            f"Task: {escape(task.get_display_name())}",
-            f"Started: {task.start_time.strftime('%Y-%m-%d %H:%M:%S')}",
-        ]
-
+        status_style = {
+            TaskStatus.RUNNING: "$text-accent",
+            TaskStatus.COMPLETED: "$text-success",
+            TaskStatus.FAILED: "$text-error",
+            TaskStatus.CANCELLED: "$text-warning",
+        }.get(task.status, "$text")
+        timing = f"[dim]Started[/dim] {task.start_time.strftime('%Y-%m-%d %H:%M:%S')}"
         if task.end_time:
-            lines.append(f"Ended: {task.end_time.strftime('%Y-%m-%d %H:%M:%S')}")
-
-        lines.extend(
-            [
-                f"Duration: {task.get_duration()}",
-                f"Status: {task.status.value.upper()}",
-                "=" * 80,
-                "",
-            ]
-        )
+            timing += f"  [dim]Ended[/dim] {task.end_time.strftime('%H:%M:%S')}"
+        timing += f"  [dim]Duration[/dim] {task.get_duration()}"
+        lines = [
+            f"[bold {status_style}]{task.status.value.upper()}[/]  [bold]{escape(task.get_display_name())}[/bold]",
+            timing,
+            "[dim]" + "─" * 40 + "[/dim]",
+            "",
+        ]
 
         # Output lines
         lines.extend(task.output_lines)
@@ -292,24 +267,20 @@ class TaskManagerWidget(Widget):
         # Update title
         try:
             title = self.query_one("#task-output-title", Static)
-            title.update(f"Task Output - {escape(task.get_display_name())}")
+            title.update(f"Task Output · {escape(task.get_display_name())}")
         except Exception as e:
             logging.debug(f"Could not update title: {e}")
 
 
     def on_option_list_option_selected(self, event: OptionList.OptionSelected):
         """Handle task selection."""
-        # Skip non-task items (headers, separators)
-        skip_ids = {"no-tasks", "running-header", "separator", "history-header"}
-        if event.option_list.id == "task-list" and event.option.id not in skip_ids:
+        if event.option_list.id == "task-list" and event.option.id not in self.NON_TASK_IDS:
             self.selected_task_id = event.option.id
             self._refresh_output()
 
     def on_option_list_option_highlighted(self, event: OptionList.OptionHighlighted):
         """Handle task highlighting with keyboard."""
-        # Skip non-task items (headers, separators)
-        skip_ids = {"no-tasks", "running-header", "separator", "history-header"}
-        if event.option_list.id == "task-list" and event.option.id not in skip_ids:
+        if event.option_list.id == "task-list" and event.option.id not in self.NON_TASK_IDS:
             self.selected_task_id = event.option.id
             self._refresh_output()
 
@@ -329,20 +300,13 @@ class TaskManagerWidget(Widget):
             self.selected_task_id = task_id
             return
 
-        # Find the task index
-        tasks = self.task_tracker.get_all_tasks()
-        for idx, task in enumerate(tasks):
-            if task.task_id == task_id:
-                try:
-                    self.task_list.highlighted = idx
-                    self.selected_task_id = task_id
-                    self._refresh_output()
-                    if self.output_log:
-                        self.output_log.focus()
-                    logging.info(f"Auto-selected task: {task_id}")
-                    break
-                except Exception as e:
-                    logging.error(f"Error selecting task: {e}")
+        # Rows include section headers, so locate the task by option id, not list position.
+        self.selected_task_id = task_id
+        self._highlight_task(task_id)
+        self._refresh_output()
+        if self.output_log:
+            self.output_log.focus()
+        logging.info(f"Auto-selected task: {task_id}")
 
     def action_cancel_task(self):
         """Cancel the currently selected running task."""
@@ -374,7 +338,7 @@ class TaskManagerWidget(Widget):
 
         if self.output_log:
             self.output_log.clear()
-            self.output_log.set_lines(["Select a task to view its output"])
+            self.output_log.set_lines([self.EMPTY_OUTPUT_HINT])
 
         try:
             title = self.query_one("#task-output-title", Static)

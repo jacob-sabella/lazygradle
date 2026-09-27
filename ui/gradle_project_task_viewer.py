@@ -13,7 +13,7 @@ from rich.markup import escape
 from textual.app import ComposeResult
 from textual import events
 from textual.binding import Binding
-from textual.containers import Horizontal, Vertical, Container, VerticalScroll
+from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.widgets import Static, Label, OptionList, Button, Input
 from textual.widgets._option_list import Option
 
@@ -43,10 +43,10 @@ class GradleProjectTaskViewer(Static):
     """
 
     BINDINGS = [
-        Binding("r", "run_task", "Run Task"),
-        Binding("R", "run_task_with_parameters", "Run Task with Parameters"),
-        Binding("/", "focus_search", "Search Tasks"),
-        Binding("f5", "refresh_tasks", "Refresh Tasks"),
+        Binding("r", "run_task", "Run"),
+        Binding("R", "run_task_with_parameters", "Run with params"),
+        Binding("/", "focus_search", "Search"),
+        Binding("f5", "refresh_tasks", "Refresh"),
         Binding("ctrl+h", "focus_left_pane", show=False, priority=True),
         Binding("ctrl+j", "focus_down_pane", show=False, priority=True),
         Binding("ctrl+k", "focus_up_pane", show=False, priority=True),
@@ -73,10 +73,10 @@ class GradleProjectTaskViewer(Static):
         self.tasks = []
         self.filtered_tasks = []
         self.selected_task = None
-        self.search_input = Input(placeholder="Search tasks... (press / to focus)", classes="task-search")
+        self.search_input = Input(placeholder="Search tasks  ( / )", classes="task-search")
         self.task_option_list = None
         self.task_name_label = Static("", classes="task-name-label")
-        self.description_widget = Static("Select a task from the list to view its description.",
+        self.description_widget = Static("[dim]Highlight a task to see its description.[/dim]",
                                          classes="task-description-text")
         self.recent_tasks_list = None
         self.saved_executions_list = None
@@ -126,7 +126,11 @@ class GradleProjectTaskViewer(Static):
                         yield Static("Recently Ran Tasks", classes="section-title recent-tasks-title")
                         yield self.render_recent_tasks()
         else:
-            yield Label("No project selected.", classes="no-project")
+            yield Label(
+                "No Gradle project yet.\n\nPress [bold]p[/bold] to open the Project Manager, "
+                "then [bold]2[/bold] to add a project folder.",
+                classes="no-project",
+            )
 
     def on_click(self, event: events.Click) -> None:
         """Clicking empty space in a pane focuses its primary control."""
@@ -241,32 +245,7 @@ class GradleProjectTaskViewer(Static):
         )
 
         if self.selected_task:
-            saved_configs = self.gradle_manager.get_saved_executions(self.selected_task.name)
-            if saved_configs:
-                for config in saved_configs:
-                    label = config.get("label", "Unnamed")
-                    params = config.get("parameters", [])
-                    env_vars = config.get("env_vars", {})
-
-                    # Create display string
-                    display = f"▶ {label}"
-                    if params:
-                        params_preview = " ".join(params)
-                        if len(params_preview) > 30:
-                            params_preview = params_preview[:27] + "..."
-                        display += f" [dim]({params_preview})[/dim]"
-                    if env_vars:
-                        env_count = len(env_vars)
-                        display += f" [dim]{env_count} env var{'s' if env_count != 1 else ''}[/dim]"
-
-                    self.saved_executions_list.add_option(
-                        Option(display, id=config["id"])
-                    )
-            else:
-                self.saved_executions_list.add_option(
-                    Option("[dim]No saved configurations[/dim]",
-                           id="no_saved", disabled=True)
-                )
+            self._populate_saved_executions()
         else:
             self.saved_executions_list.add_option(
                 Option("[dim]Select a task first[/dim]",
@@ -286,7 +265,7 @@ class GradleProjectTaskViewer(Static):
                    variant="success", classes="small-action-button"),
             Button("✎ Edit", id="edit_saved_config_button",
                    variant="default", classes="small-action-button"),
-            Button("🗑 Delete", id="delete_saved_config_button",
+            Button("✗ Delete", id="delete_saved_config_button",
                    variant="warning", classes="small-action-button"),
             classes="saved-execution-actions"
         )
@@ -302,32 +281,39 @@ class GradleProjectTaskViewer(Static):
             return
 
         self.saved_executions_list.clear_options()
+        self._populate_saved_executions()
+
+    def _populate_saved_executions(self):
+        """Fill the saved executions list for the selected task."""
         saved_configs = self.gradle_manager.get_saved_executions(self.selected_task.name)
-
-        if saved_configs:
-            for config in saved_configs:
-                label = config.get("label", "Unnamed")
-                params = config.get("parameters", [])
-                env_vars = config.get("env_vars", {})
-
-                display = f"▶ {label}"
-                if params:
-                    params_preview = " ".join(params)
-                    if len(params_preview) > 30:
-                        params_preview = params_preview[:27] + "..."
-                    display += f" [dim]({params_preview})[/dim]"
-                if env_vars:
-                    env_count = len(env_vars)
-                    display += f" [dim]{env_count} env var{'s' if env_count != 1 else ''}[/dim]"
-
-                self.saved_executions_list.add_option(
-                    Option(display, id=config["id"])
-                )
-        else:
+        if not saved_configs:
             self.saved_executions_list.add_option(
-                Option("[dim]No saved configurations[/dim]",
+                Option("[dim]No saved configurations. Press R to create one.[/dim]",
                        id="no_saved", disabled=True)
             )
+            return
+
+        for config in saved_configs:
+            self.saved_executions_list.add_option(
+                Option(self._saved_config_display(config), id=config["id"])
+            )
+
+    @staticmethod
+    def _saved_config_display(config) -> str:
+        label = escape(config.get("label", "Unnamed"))
+        params = config.get("parameters", [])
+        env_vars = config.get("env_vars", {})
+
+        display = f"▶ {label}"
+        if params:
+            params_preview = " ".join(params)
+            if len(params_preview) > 30:
+                params_preview = params_preview[:29] + "…"
+            display += f" [dim]{escape(params_preview)}[/dim]"
+        if env_vars:
+            env_count = len(env_vars)
+            display += f" [dim]· {env_count} env var{'s' if env_count != 1 else ''}[/dim]"
+        return display
 
     def render_recent_tasks(self):
         """Create and populate the recent tasks widget.
@@ -355,7 +341,7 @@ class GradleProjectTaskViewer(Static):
                 except (ValueError, TypeError):
                     time_str = ""
 
-                display = f"{task_name} {parameters}" if parameters else task_name
+                display = escape(f"{task_name} {parameters}" if parameters else task_name)
                 if time_str:
                     display = f"[dim]{time_str}[/dim] {display}"
 
@@ -380,21 +366,8 @@ class GradleProjectTaskViewer(Static):
             search_query = event.value.lower().strip()
             logging.debug(f"Search query: {search_query}")
 
-            if search_query:
-                self.filtered_tasks = [
-                    task
-                    for task in self.tasks
-                    if (task.name or "").strip()
-                    and (
-                        search_query in task.name.lower()
-                        or search_query in task.description.lower()
-                    )
-                ]
-                logging.debug(f"Filtered to {len(self.filtered_tasks)} tasks")
-            else:
-                self.filtered_tasks = [task for task in self.tasks if (task.name or "").strip()]
-                logging.debug(f"Showing all {len(self.filtered_tasks)} tasks")
-
+            self.filtered_tasks = self._filter_tasks(search_query)
+            logging.debug(f"Showing {len(self.filtered_tasks)} tasks")
             self.update_task_list()
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
@@ -402,6 +375,19 @@ class GradleProjectTaskViewer(Static):
             self._focus_first_task_result()
             if hasattr(event, "stop"):
                 event.stop()
+
+    def _filter_tasks(self, search_query: str):
+        """Return named tasks whose name or description contains the query."""
+        return [
+            task
+            for task in self.tasks
+            if (task.name or "").strip()
+            and (
+                not search_query
+                or search_query in task.name.lower()
+                or search_query in (task.description or "").lower()
+            )
+        ]
 
     def update_task_list(self):
         """Refresh the task option list with current filtered tasks.
@@ -419,7 +405,7 @@ class GradleProjectTaskViewer(Static):
                 self.task_option_list.add_option(Option(task_name))
 
             if not self.filtered_tasks:
-                self.task_name_label.update("[dim]No tasks match your search[/dim]")
+                self.task_name_label.update("[dim]No tasks match your search. Clear it to see every task.[/dim]")
                 self.description_widget.update("")
                 self.selected_task = None
 
@@ -520,11 +506,11 @@ class GradleProjectTaskViewer(Static):
         if self.task_option_list:
             self.task_option_list.clear_options()
             self.task_option_list.add_option(
-                Option("[bold yellow]⟳ Refreshing tasks...[/bold yellow]", disabled=True)
+                Option("[bold $text-warning]⟳ Refreshing tasks…[/]", disabled=True)
             )
 
-        self.task_name_label.update("[bold yellow]Refreshing...[/bold yellow]")
-        self.description_widget.update("[dim]Loading tasks from Gradle project...[/dim]")
+        self.task_name_label.update("[bold $text-warning]Refreshing…[/]")
+        self.description_widget.update("[dim]Asking Gradle for this project's tasks. Large builds can take a while.[/dim]")
         self.selected_task = None
 
     def _show_refresh_error(self, error_message: str):
@@ -536,10 +522,12 @@ class GradleProjectTaskViewer(Static):
         if self.task_option_list:
             self.task_option_list.clear_options()
             self.task_option_list.add_option(
-                Option(f"[bold red]✗ Error: {error_message}[/bold red]", disabled=True)
+                Option("[bold $text-error]✗ Could not load tasks[/]", disabled=True)
             )
-        self.task_name_label.update("[bold red]Refresh Failed[/bold red]")
-        self.description_widget.update(f"[red]{error_message}[/red]")
+        self.task_name_label.update("[bold $text-error]Refresh failed[/]")
+        self.description_widget.update(
+            f"[$text-error]{escape(error_message)}[/]\n\n[dim]Fix the build, then press F5 to retry.[/dim]"
+        )
 
     def _show_no_tasks_found(self):
         """Display message when no tasks are found in the project."""
@@ -548,8 +536,8 @@ class GradleProjectTaskViewer(Static):
             self.task_option_list.add_option(
                 Option("[dim]No tasks found in project[/dim]", disabled=True)
             )
-        self.task_name_label.update("[yellow]No Tasks Found[/yellow]")
-        self.description_widget.update("[dim]This project has no Gradle tasks.[/dim]")
+        self.task_name_label.update("[$text-warning]No tasks found[/]")
+        self.description_widget.update("[dim]Gradle reported no tasks for this project. Press F5 to retry.[/dim]")
 
     def _update_tasks_after_refresh(self, search_query: str):
         """Update task list UI after successful refresh.
@@ -560,17 +548,7 @@ class GradleProjectTaskViewer(Static):
         Args:
             search_query: Current search query to re-apply after refresh.
         """
-        if search_query:
-            self.filtered_tasks = [
-                task for task in self.tasks
-                if (task.name or "").strip()
-                and (
-                    search_query in task.name.lower()
-                    or search_query in task.description.lower()
-                )
-            ]
-        else:
-            self.filtered_tasks = [task for task in self.tasks if (task.name or "").strip()]
+        self.filtered_tasks = self._filter_tasks(search_query.lower().strip())
 
         if self.task_option_list:
             self.task_option_list.clear_options()
@@ -580,8 +558,8 @@ class GradleProjectTaskViewer(Static):
                     continue
                 self.task_option_list.add_option(Option(task_name))
 
-            self.task_name_label.update(f"[bold green]✓ Refreshed {len(self.tasks)} tasks[/bold green]")
-            self.description_widget.update("[dim]Select a task from the list to view its description.[/dim]")
+            self.task_name_label.update(f"[bold $text-success]✓ Loaded {len(self.tasks)} tasks[/]")
+            self.description_widget.update("[dim]Highlight a task to see its description. Enter or r runs it.[/dim]")
 
             if self.filtered_tasks:
                 self.task_option_list.focus()
@@ -752,9 +730,9 @@ class GradleProjectTaskViewer(Static):
             task: The GradleTask object to display.
         """
         logging.debug(f"Selected task: {task.name}")
-        self.task_name_label.update(f"[bold cyan]{task.name}[/bold cyan]")
+        self.task_name_label.update(f"[bold $text-accent]{escape(task.name)}[/]")
 
-        description_text = task.description if task.description else "[dim]No description available[/dim]"
+        description_text = escape(task.description) if task.description else "[dim]No description available[/dim]"
         self.description_widget.update(description_text)
 
         # Update saved executions list for this task
@@ -827,7 +805,7 @@ class GradleProjectTaskViewer(Static):
                     loop.call_soon_threadsafe(
                         task_manager.append_output_to_task,
                         task_id,
-                        f"[red]{escape(line)}[/red]",
+                        f"[$text-error]{escape(line)}[/]",
                     )
                 except Exception as e:
                     logging.error(f"Error in on_stderr callback: {e}", exc_info=True)
@@ -950,7 +928,7 @@ class GradleProjectTaskViewer(Static):
                 loop.call_soon_threadsafe(
                     task_manager.append_output_to_task,
                     task_id,
-                    f"[red]{escape(line)}[/red]",
+                    f"[$text-error]{escape(line)}[/]",
                 )
             except Exception as e:
                 logging.error(f"Error in on_stderr callback: {e}", exc_info=True)
@@ -1126,7 +1104,11 @@ class GradleProjectTaskViewer(Static):
                     logging.info(f"Deleted saved configuration: {config_id}")
 
         await self.app.push_screen(
-            ConfirmationModal("Delete this saved configuration?"),
+            ConfirmationModal(
+                "Delete this saved configuration?",
+                title="Delete configuration",
+                confirm_label="Delete",
+            ),
             callback=on_confirm
         )
 

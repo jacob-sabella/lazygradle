@@ -1,8 +1,10 @@
+import os
+
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Vertical
 from textual.widget import Widget
-from textual.widgets import Tab, Tabs, Static, ContentSwitcher
+from textual.widgets import Tab, Tabs
 
 from gradle.gradle_manager import GradleManager
 from ui.gradle_project_changer import GradleProjectChanger
@@ -15,8 +17,9 @@ class LazyGradleWidget(Widget):
     """Containing widget to hold the layout with Tabs."""
 
     BINDINGS = [
-        Binding("1", "switch_tab('current-setup')", "Switch to Setup tab"),
-        Binding("2", "switch_tab('task-manager-tab')", "Switch to Task Manager tab"),
+        # The tab labels already advertise [1]/[2], so keep the footer for tab actions.
+        Binding("1", "switch_tab('current-setup')", "Current Setup", show=False),
+        Binding("2", "switch_tab('task-manager-tab')", "Task Manager", show=False),
     ]
 
     def __init__(self, gradle_manager: GradleManager, **kwargs):
@@ -65,7 +68,9 @@ class LazyGradleWidget(Widget):
             return
 
         logging.info(f"Switching to tab {tab_id} (force_refresh={force_refresh})")
-        self.task_tracker.project_path = self.gradle_manager.get_selected_project()
+        selected_project = self.gradle_manager.get_selected_project()
+        self.task_tracker.project_path = selected_project
+        self.app.sub_title = os.path.basename(selected_project) if selected_project else ""
 
         tab_content_container = self.query_one("#tab-content-container")
         tab_content_container.remove_children()

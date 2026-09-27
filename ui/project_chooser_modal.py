@@ -1,9 +1,11 @@
 from pathlib import Path
 import os
 
+from rich.markup import escape
+
 from textual.app import ComposeResult
 from textual.binding import Binding
-from textual.containers import Vertical, Horizontal, Container, VerticalScroll
+from textual.containers import Vertical, Horizontal, Container
 from textual.css.query import NoMatches
 from textual.screen import ModalScreen
 from textual.widgets import (
@@ -24,12 +26,25 @@ from ui.gradlew_permission_modal import GradlewPermissionModal
 
 
 class ProjectChooserModal(ModalScreen):
+    SWITCH_HINT = "Enter opens the highlighted project · d removes it from this list · / searches"
+    ADD_HINT = (
+        "Highlight a folder that contains a Gradle build "
+        "(build.gradle, settings.gradle, .kts, or gradlew), then choose Add Project."
+    )
+    GRADLE_MARKERS = (
+        "build.gradle",
+        "build.gradle.kts",
+        "settings.gradle",
+        "settings.gradle.kts",
+        "gradlew",
+    )
+
     BINDINGS = [
         Binding("escape", "dismiss_modal", "Close the modal"),
         Binding("1", "switch_tab('switch-projects')", "Switch Projects"),
         Binding("2", "switch_tab('add-project')", "Add New Project"),
         Binding("/", "focus_search", "Search Projects"),
-        Binding("d", "delete_project", "Delete Project"),
+        Binding("d", "delete_project", "Remove Project"),
         Binding("enter", "select_project", "Select Project"),
     ]
 
@@ -60,31 +75,24 @@ class ProjectChooserModal(ModalScreen):
 
         switch_content = self.query_one("#switch-projects-content", Vertical)
         project_option_list = OptionList()
-        for project_path in self.filtered_projects:
-            project_name = os.path.basename(project_path)
-            project_option_list.add_option(
-                Option(
-                    f"[bold cyan]{project_name}[/bold cyan]\n[dim]{project_path}[/dim]",
-                    id=project_path,
-                )
-            )
+        self._fill_project_options(project_option_list)
 
         switch_content.mount(
-            Static("", classes="status-message"),
+            Static(self.SWITCH_HINT, classes="status-message"),
             Input(
-                placeholder="Search projects... (press / to focus)",
+                placeholder="Search projects  ( / )",
                 classes="project-search",
             ),
             project_option_list,
             Horizontal(
                 Button(
-                    "✓ Select Project (Enter)",
+                    "✓ Open Project (Enter)",
                     id="select_project_button",
                     variant="success",
                     classes="modal-button",
                 ),
                 Button(
-                    "🗑 Delete Project (d)",
+                    "✗ Remove (d)",
                     id="delete_project_button",
                     variant="error",
                     classes="modal-button",
@@ -96,24 +104,43 @@ class ProjectChooserModal(ModalScreen):
         add_content = self.query_one("#add-project-content", Vertical)
         self.dir_tree = DirectoryTree(Path.home())
         add_content.mount(
-            Static("", classes="status-message"),
+            Static(self.ADD_HINT, classes="status-message"),
             self.dir_tree,
             Horizontal(
                 Button(
-                    "✓ Confirm",
+                    "✓ Add Project",
                     id="confirm_button",
                     variant="success",
                     classes="modal-button",
                 ),
                 Button(
-                    "✗ Cancel",
+                    "Cancel (Esc)",
                     id="cancel_button",
-                    variant="error",
+                    variant="default",
                     classes="modal-button",
                 ),
                 classes="modal-button-bar",
             ),
         )
+
+    def _fill_project_options(self, option_list: OptionList) -> None:
+        """Populate the project list from filtered_projects, with an empty state."""
+        option_list.clear_options()
+        for project_path in self.filtered_projects:
+            project_name = os.path.basename(project_path)
+            option_list.add_option(
+                Option(
+                    f"[bold $text-accent]{escape(project_name)}[/]\n[dim]{escape(project_path)}[/dim]",
+                    id=project_path,
+                )
+            )
+        if not self.filtered_projects:
+            message = (
+                "[dim]No projects match your search.[/dim]"
+                if self.all_projects
+                else "[dim]No projects yet. Press 2 to add a Gradle project folder.[/dim]"
+            )
+            option_list.add_option(Option(message, disabled=True))
 
     def action_focus_search(self):
         try:
@@ -147,17 +174,8 @@ class ProjectChooserModal(ModalScreen):
                 self.filtered_projects = self.all_projects
 
             try:
-                option_list = self.query_one(OptionList)
-                option_list.clear_options()
-                for project_path in self.filtered_projects:
-                    project_name = os.path.basename(project_path)
-                    option_list.add_option(
-                        Option(
-                            f"[bold cyan]{project_name}[/bold cyan]\n[dim]{project_path}[/dim]",
-                            id=project_path,
-                        )
-                    )
-            except:
+                self._fill_project_options(self.query_one(OptionList))
+            except NoMatches:
                 pass
 
     async def on_key(self, event: events.Key) -> None:
@@ -190,20 +208,33 @@ class ProjectChooserModal(ModalScreen):
         self, directory_tree: DirectoryTree.DirectorySelected
     ):
         self.selected_path = Path(directory_tree.path)
-        self.refresh_static(f"Selected: {self.selected_path}")
+        if self._is_gradle_project(self.selected_path):
+            self.refresh_static(
+                f"[$text-success]✓ Gradle build found:[/] {escape(str(self.selected_path))}"
+            )
+        else:
+            self.refresh_static(f"Selected: {escape(str(self.selected_path))}")
+
+    def _is_gradle_project(self, path: Path) -> bool:
+        return any((path / marker).exists() for marker in self.GRADLE_MARKERS) or any(
+            path.glob("*.gradle")
+        )
 
     async def on_button_pressed(self, event: Button.Pressed):
         button = event.button
         if button.id == "confirm_button":
-            if self.selected_path is not None and self.selected_path.exists():
-                gradle_files = list(self.selected_path.glob("*.gradle"))
-                if gradle_files:
-                    # Check gradlew permissions before adding the project
-                    await self.check_and_add_project(str(self.selected_path))
-                else:
-                    self.refresh_static(
-                        "No .gradle files found in the selected directory!"
-                    )
+            if self.selected_path is None or not self.selected_path.exists():
+                self.refresh_static(
+                    "[$text-warning]Highlight a folder in the tree and press Enter on it first.[/]"
+                )
+            elif self._is_gradle_project(self.selected_path):
+                # Check gradlew permissions before adding the project
+                await self.check_and_add_project(str(self.selected_path))
+            else:
+                self.refresh_static(
+                    f"[$text-warning]No Gradle build in {escape(str(self.selected_path))}.[/] "
+                    "Pick the folder that holds build.gradle(.kts) or settings.gradle(.kts)."
+                )
         elif button.id == "cancel_button":
             self.dismiss_modal(should_refresh=False)
         elif button.id == "select_project_button":
@@ -218,7 +249,7 @@ class ProjectChooserModal(ModalScreen):
 
         if not has_permission:
             # Show permission modal to fix or inform the user
-            self.refresh_static(f"[yellow]{error_message}[/yellow]")
+            self.refresh_static(f"[$text-warning]{escape(error_message)}[/]")
 
             def on_permission_fixed(fixed: bool):
                 if fixed:
@@ -229,7 +260,7 @@ class ProjectChooserModal(ModalScreen):
                 else:
                     # User chose not to fix or couldn't fix
                     self.refresh_static(
-                        "[red]Cannot add project: gradlew needs execute permissions[/red]"
+                        "[$text-error]Project not added: gradlew needs execute permission.[/]"
                     )
 
             # Push the permission modal
@@ -255,7 +286,7 @@ class ProjectChooserModal(ModalScreen):
             # Show message if no project is highlighted
             try:
                 static_label = self.query_one("#switch-projects-content .status-message", Static)
-                static_label.update("[yellow]No project highlighted. Highlight a project and press Enter to select.[/yellow]")
+                static_label.update("[$text-warning]No project highlighted. Use the arrow keys to pick one, then press Enter.[/]")
             except:
                 pass
             return
@@ -271,7 +302,7 @@ class ProjectChooserModal(ModalScreen):
             try:
                 # Try to get the status message in the switch-projects tab
                 static_label = self.query_one("#switch-projects-content .status-message", Static)
-                static_label.update("[yellow]No project selected. Highlight a project and press 'd' to delete.[/yellow]")
+                static_label.update("[$text-warning]No project highlighted. Pick one, then press d to remove it.[/]")
             except:
                 pass
             return
@@ -305,28 +336,16 @@ class ProjectChooserModal(ModalScreen):
 
             # Update the project list UI
             try:
-                option_list = self.query_one(OptionList)
-                option_list.clear_options()
-
-                if self.filtered_projects:
-                    for project_path in self.filtered_projects:
-                        project_name_display = os.path.basename(project_path)
-                        option_list.add_option(
-                            Option(
-                                f"[bold cyan]{project_name_display}[/bold cyan]\n[dim]{project_path}[/dim]",
-                                id=project_path,
-                            )
-                        )
-                else:
-                    option_list.add_option(
-                        Option("[dim]No projects found[/dim]", disabled=True)
-                    )
+                self._fill_project_options(self.query_one(OptionList))
 
                 # Show success message
                 try:
                     static_label = self.query_one("#switch-projects-content .status-message", Static)
-                    static_label.update(f"[green]Deleted project: {project_name}[/green]")
-                except:
+                    static_label.update(
+                        f"[$text-success]Removed {escape(project_name)} from lazygradle.[/] "
+                        "[dim]No files were touched.[/dim]"
+                    )
+                except NoMatches:
                     pass
 
             except Exception as e:
@@ -339,6 +358,6 @@ class ProjectChooserModal(ModalScreen):
             # Show error message
             try:
                 static_label = self.query_one("#switch-projects-content .status-message", Static)
-                static_label.update(f"[red]Failed to delete project: {project_name}[/red]")
+                static_label.update(f"[$text-error]Could not remove {escape(project_name)}.[/]")
             except:
                 pass

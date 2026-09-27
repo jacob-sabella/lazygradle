@@ -159,7 +159,7 @@ class TaskTracker:
         if task and task.status == TaskStatus.RUNNING and task.asyncio_task:
             logging.info(f"Cancelling task: {task_id} - {task.get_display_name()}")
             task.asyncio_task.cancel()
-            task.output_lines.append("[bold yellow]⚠ Task cancelled by user[/bold yellow]")
+            task.output_lines.append("[bold $text-warning]⚠ Task cancelled by user[/]")
             self.mark_cancelled(task_id)
             return True
         return False
