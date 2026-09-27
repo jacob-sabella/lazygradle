@@ -5,6 +5,7 @@ It handles theme persistence, project switching, and coordinates between the UI
 and Gradle management layers.
 """
 
+from rich.markup import escape
 from textual.app import App, ComposeResult, SystemCommand
 from textual.binding import Binding
 from textual.widgets import Header, Footer
@@ -31,9 +32,10 @@ class LazyGradleApp(App):
     """
 
     CSS_PATH = "lazy_gradle_app.css"
+    TITLE = "lazygradle"
 
     BINDINGS = [
-        Binding("p", "show_project_chooser", "Show Project Chooser", priority=True),
+        Binding("p", "show_project_chooser", "Projects", priority=True),
     ]
 
     ENABLE_COMMAND_PALETTE = True
@@ -161,51 +163,63 @@ class LazyGradleApp(App):
         except Exception:
             tab_id = None
 
-        focused = getattr(self, "focused", None)
-        focused_name = focused.__class__.__name__ if focused is not None else "None"
-        focused_id = getattr(focused, "id", None)
-        focus_desc = f"{focused_name}" + (f" (id={focused_id})" if focused_id else "")
-
         tab_label = {
             "current-setup": "Current Setup",
             "task-manager-tab": "Task Manager",
-        }.get(tab_id or "", "Unknown")
+        }.get(tab_id or "")
 
-        title = f"Keys Guide [{tab_label}]"
-        body = (
-            f"[dim]Context:[/] tab={tab_id or 'unknown'} focused={focus_desc}\n\n"
-            "[bold]This Guide[/bold]\n"
-            "  Esc or q: close\n\n"
-            "[bold]Global[/bold]\n"
-            "  1: switch to Current Setup tab\n"
-            "  2: switch to Task Manager tab\n"
-            "  p: project chooser\n"
-            "  Ctrl+h/j/k/l: move focus between panes (current tab)\n"
-            "  Ctrl+Arrow keys: same as Ctrl+h/j/k/l\n"
-            "  Terminal font size: global (your terminal emulator)\n"
-            "    Common: Ctrl+Plus / Ctrl+Minus / Ctrl+0 (reset)\n"
-            "    macOS: Cmd+Plus / Cmd+Minus / Cmd+0 (reset)\n\n"
-            "[bold]Current Setup Tab[/bold]\n"
-            "  /: focus task search\n"
-            "  Enter (in search): jump to first result (highlights it)\n"
-            "  Enter (on a task): run task (same as r)\n"
-            "  r: run task\n"
-            "  R: run task with parameters\n"
-            "  F5: refresh tasks\n\n"
-            "[bold]Task Manager Tab[/bold]\n"
-            "  C (Shift+C): clear task history\n"
-            "  c: cancel running task\n\n"
-            "[bold]Task Output Pane[/bold]\n"
-            "  j/k or Arrow Up/Down: move cursor line\n"
-            "  h/l or Arrow Left/Right: horizontal scroll\n"
-            "  gg: top, G: bottom\n"
-            "  Ctrl+d / Ctrl+u: page down / up\n"
-            "  0 / $: horizontal start / end\n"
-            "  + / -: zoom (readability, not terminal font size)\n"
-            "  Mouse drag: visual select\n"
-            "  v: toggle visual select\n"
-            "  Esc: exit visual select\n"
-            "  VISUAL y: yank selection\n"
-            "  yy: yank current line\n"
+        title = f"Keys Guide · {tab_label}" if tab_label else "Keys Guide"
+
+        def section(name: str, rows: list[tuple[str, str]]) -> str:
+            width = max(len(key) for key, _ in rows)
+            lines = [f"[bold $text-accent]{name}[/]"]
+            lines += [f"  [bold]{escape(key.ljust(width))}[/]  {text}" for key, text in rows]
+            return "\n".join(lines)
+
+        sections = [
+            section("Global", [
+                ("1 / 2", "switch to Current Setup / Task Manager"),
+                ("p", "open the Project Manager"),
+                ("Ctrl+h/j/k/l", "move focus between panes"),
+                ("Ctrl+Arrows", "same as Ctrl+h/j/k/l"),
+                ("Ctrl+p", "command palette (themes, this guide)"),
+            ]),
+            section("Current Setup", [
+                ("/", "focus task search"),
+                ("Enter", "in search: jump to first result; on a task: run it"),
+                ("r", "run the highlighted task"),
+                ("R", "run with parameters"),
+                ("F5", "refresh the task list"),
+            ]),
+            section("Task Manager", [
+                ("c", "cancel the selected running task"),
+                ("C", "clear task history"),
+            ]),
+            section("Task Output", [
+                ("j/k  Up/Down", "move the cursor line"),
+                ("h/l  Left/Right", "scroll horizontally"),
+                ("gg / G", "top / bottom"),
+                ("Ctrl+d / Ctrl+u", "half page down / up"),
+                ("0 / $", "scroll to line start / end"),
+                ("v  or mouse drag", "visual select; Esc exits"),
+                ("y", "yank the visual selection"),
+                ("yy", "yank the current line"),
+                ("+ / -", "readability zoom (not terminal font size)"),
+            ]),
+            section("Project Manager", [
+                ("1 / 2", "Switch Projects / Add New Project"),
+                ("/", "search projects"),
+                ("Enter", "open the highlighted project"),
+                ("d", "remove the highlighted project from the list"),
+                ("Esc", "close"),
+            ]),
+            section("This Guide", [
+                ("Esc / q", "close"),
+            ]),
+        ]
+        body = "\n\n".join(sections)
+        body += (
+            "\n\n[$text-muted]Terminal font size belongs to your terminal emulator: "
+            "usually Ctrl+Plus / Ctrl+Minus / Ctrl+0 (Cmd on macOS).[/]"
         )
         return title, body

@@ -5,6 +5,8 @@ in the LazyGradle TUI interface.
 """
 
 import os
+
+from rich.markup import escape
 from textual.app import ComposeResult
 from textual.containers import Horizontal
 from textual.widgets import Static
@@ -46,15 +48,15 @@ class GradleProjectChanger(Static):
             project_name = os.path.basename(selected_project)
             project_path = selected_project
             yield Horizontal(
-                Static("📁 Project:", classes="project-label"),
+                Static("Project", classes="project-label"),
                 Static(
-                    f"[bold cyan]{project_name}[/bold cyan]", classes="project-name"
+                    f"[bold $text-accent]{escape(project_name)}[/]", classes="project-name"
                 ),
-                Static(f"[dim]{project_path}[/dim]", classes="project-path"),
+                Static(f"[$text-muted]{escape(project_path)}[/]", classes="project-path"),
                 classes="project-header",
             )
         else:
             yield Static(
-                "⚠ No project selected. Press [bold]p[/bold] to choose a project.",
+                "⚠ No project selected. Press [bold]p[/bold] to add or choose one.",
                 classes="project-warning",
             )

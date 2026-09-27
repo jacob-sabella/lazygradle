@@ -1,5 +1,7 @@
 import logging
 
+from rich.markup import escape
+
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Vertical, Horizontal
@@ -30,53 +32,42 @@ class GradlewPermissionModal(ModalScreen):
         gradlew_path = f"{self.project_path}/gradlew"
 
         yield Vertical(
-            Static("Gradle Wrapper Permission Issue", classes="modal-title"),
+            Static("Gradle wrapper can't run", classes="modal-title"),
             Vertical(
                 Static(
-                    "[bold red]Execute Permission Missing[/bold red]",
-                    classes="modal-section-title",
+                    "[bold $text-error]gradlew is missing execute permission[/]\n"
+                    f"[$text-muted]{escape(gradlew_path)}[/]\n\n"
+                    f"[bold]Status:[/bold] {escape(self.fix_message)}\n\n"
+                    f"{self.render_solution()}",
+                    classes="modal-message permission-body",
                 ),
-                Static(
-                    f"The gradlew file does not have execute permissions:\n[dim]{gradlew_path}[/dim]",
-                    classes="modal-content",
-                ),
-                Static(""),
-                Static(
-                    f"[bold]Status:[/bold] {self.fix_message}",
-                    classes="modal-content",
-                ),
-                Static(""),
-                self.render_solution(),
-                self.render_buttons(),
                 classes="modal-content",
             ),
+            self.render_buttons(),
             classes="gradlew-permission-modal",
         )
 
-    def render_solution(self):
-        """Render the solution instructions."""
+    def render_solution(self) -> str:
+        """Return the solution instructions as markup."""
+        project = escape(self.project_path)
         if self.can_fix:
-            return Static(
-                "[bold green]Solution:[/bold green] Click 'Fix Permissions' below to automatically "
-                "add execute permissions to the gradlew file.",
-                classes="modal-content",
+            return (
+                "[bold $text-success]Fix:[/] choose [bold]Fix Permissions[/bold] to run "
+                "chmod +x on gradlew for you."
             )
-        else:
-            return Static(
-                "[bold yellow]Manual Fix Required:[/bold yellow]\n"
-                f"Please run the following command in your terminal:\n"
-                f"[bold cyan]cd {self.project_path} && chmod +x gradlew[/bold cyan]\n\n"
-                "Or if you need elevated permissions:\n"
-                f"[bold cyan]cd {self.project_path} && sudo chmod +x gradlew[/bold cyan]",
-                classes="modal-content",
-            )
+        return (
+            "[bold $text-warning]Manual fix required.[/] Run this in your terminal:\n"
+            f"[bold $text-accent]cd {project} && chmod +x gradlew[/]\n\n"
+            "If that is denied, use elevated permissions:\n"
+            f"[bold $text-accent]cd {project} && sudo chmod +x gradlew[/]"
+        )
 
     def render_buttons(self):
         """Render the buttons based on whether we can fix the issue."""
         if self.can_fix:
             return Horizontal(
                 Button(
-                    "Fix Permissions",
+                    "✓ Fix Permissions",
                     id="fix_button",
                     variant="success",
                     classes="modal-button",
@@ -116,14 +107,7 @@ class GradlewPermissionModal(ModalScreen):
             self.dismiss(True)  # Return True to indicate success
         else:
             logging.error(f"Failed to fix gradlew permissions: {message}")
-            # Update the modal to show the error
-            try:
-                # Find the solution static and update it with error message
-                self.query_one(".modal-content")
-                # For simplicity, just dismiss with failure
-                self.dismiss(False)
-            except:
-                self.dismiss(False)
+            self.dismiss(False)
 
     def action_dismiss_modal(self):
         """Dismiss modal using the Escape key."""

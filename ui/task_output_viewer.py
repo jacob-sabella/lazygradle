@@ -307,7 +307,7 @@ class TaskOutputViewer(Static):
             rendered_lines.append("")
 
         for line_index, line in enumerate(self.lines):
-            prefix = "[bold cyan]›[/] " if line_index == self.current_line else "  "
+            prefix = "[bold $text-accent]›[/] " if line_index == self.current_line else "  "
             content = f"{prefix}{padding}{line}"
             if bold_all:
                 content = f"[bold]{content}[/]"
@@ -315,7 +315,7 @@ class TaskOutputViewer(Static):
             if self.visual_mode and selected_start <= line_index <= selected_end:
                 content = f"[reverse]{content}[/]"
             elif line_index == self.current_line:
-                content = f"[on #2d3d5a]{content}[/]"
+                content = f"[on $primary 25%]{content}[/]"
 
             rendered_lines.append(content)
 

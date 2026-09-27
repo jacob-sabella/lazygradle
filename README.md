@@ -11,6 +11,8 @@
 
 `lazygradle` is a Textual-based TUI for browsing Gradle tasks, running them quickly, and reviewing task output without leaving the terminal.
 
+![lazygradle demo: search for a task, run it, yank lines from its output, and re-run it with parameters](screenshots/readme/demo.gif)
+
 It is built for the workflow of:
 
 - keeping multiple Gradle projects cached and switchable

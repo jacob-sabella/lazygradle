@@ -12,7 +12,10 @@
    7. Utility Classes - Reusable helpers
 
    Design Tokens Used:
-   - Colors: $surface, $panel, $boost, $primary, $text, $warning, $error
+   - Colors: $surface, $panel, $boost, $primary, $text, $text-muted,
+     $warning, $error, and the contrast-safe $text-* variants.
+     Never hard-code a color: every Textual theme, light or dark, must stay legible.
+     Inline markup follows the same rule ([$text-accent], [$text-error], ...).
    - Borders: solid, thick
    - Spacing: 0, 1, 2 (in Textual grid units)
 
@@ -22,11 +25,12 @@
    1. BASE STYLES
    ============================================================================= */
 
-/* Application-wide base elements */
-Header,
-Footer {
-  background: #333;
-  color: white;
+/* Modal screens center their dialog; the dialog container only sizes itself. */
+ConfirmationModal,
+GradlewPermissionModal,
+KeysGuideModal,
+RunTaskWithParametersModal {
+  align: center middle;
 }
 
 OptionList {
@@ -86,7 +90,7 @@ RichLog {
 /* Project information header bar */
 .project-header {
   width: 100%;
-  height: 4;
+  height: 3;
   background: $boost;
   padding: 0 2;
   border-top: solid $primary;
@@ -119,18 +123,20 @@ RichLog {
 /* Warning banner for project issues */
 .project-warning {
   width: 100%;
-  height: 3;
-  background: $warning;
-  padding: 1 2;
+  height: auto;
+  background: $warning-muted;
+  color: $text-warning;
+  padding: 0 2;
   text-align: center;
-  border-bottom: thick $error;
 }
 
 /* No project selected state */
 .no-project {
+  width: 100%;
+  height: 1fr;
+  content-align: center middle;
   text-align: center;
-  color: gray;
-  background: #f0f0f0;
+  color: $text-muted;
 }
 
 /* =============================================================================
@@ -298,40 +304,36 @@ RichLog {
   overflow: hidden;
 }
 
-/* Run with parameters modal (centered) */
+/* Run with parameters modal (centered by its screen) */
 .run-params-modal {
-  width: 100vw;
-  max-height: 95vh;
+  width: 90%;
+  max-width: 120;
   height: auto;
+  max-height: 100%;
   background: $surface;
   border: thick $primary;
   padding: 0;
-  align: center middle;
-  overflow: hidden;
 }
 
-/* Gradlew permission modal (centered) */
+/* Gradlew permission modal (centered by its screen) */
 .gradlew-permission-modal {
-  width: 80vw;
-  max-width: 100;
+  width: 90%;
+  max-width: 90;
   height: auto;
+  max-height: 100%;
   background: $surface;
   border: thick $error;
   padding: 0;
-  align: center middle;
 }
 
-/* Keys guide modal (centered) */
+/* Keys guide modal (centered by its screen) */
 .keys-guide-modal {
-  width: 90vw;
-  max-width: 140;
-  max-height: 90vh;
-  height: auto;
+  width: 90%;
+  max-width: 90;
+  height: 90%;
   background: $surface;
   border: thick $primary;
   padding: 0;
-  align: center middle;
-  overflow: hidden;
 }
 
 .keys-guide-scroll {
@@ -344,13 +346,6 @@ RichLog {
 .keys-guide-body {
   width: 100%;
   height: auto;
-}
-
-/* Modal tabs container */
-.modal-tabs {
-  width: 100%;
-  height: auto;
-  background: $panel;
 }
 
 /* Tabbed content within modals */
@@ -366,23 +361,15 @@ RichLog {
   background: $surface;
 }
 
-/* Tab content area within modals */
-.tab-content-area {
-  width: 100%;
-  height: 100%;
-  padding: 0;
-}
-
 /* ----- Modal Sections ----- */
 
-/* Section title within modals */
+/* Field label within modals */
 .modal-section-title {
   width: 100%;
   height: auto;
-  padding: 1 2;
-  background: $boost;
-  text-align: center;
-  border-bottom: solid $primary;
+  padding: 0 1;
+  margin-top: 1;
+  text-style: bold;
 }
 
 /* Project search input in modal */
@@ -395,27 +382,20 @@ RichLog {
   background: $surface;
 }
 
-/* Scrollable content within modals */
-.modal-scroll {
-  width: 100%;
-  height: 1fr;
-  overflow-y: auto;
-}
-
-/* Modal option list */
-.modal-option-list {
-  width: 100%;
-  height: 100%;
-}
-
-/* Status message display in modals */
+/* Status / hint line in modals (colored per message via markup) */
 .status-message {
   width: 100%;
   height: auto;
-  padding: 1 2;
-  background: $panel;
-  text-align: center;
-  color: $warning;
+  padding: 0 2;
+  color: $text-muted;
+}
+
+/* Hint under a form field */
+.field-hint {
+  width: 100%;
+  height: auto;
+  padding: 0 1;
+  color: $text-muted;
 }
 
 /* ----- Modal Buttons ----- */
@@ -424,7 +404,7 @@ RichLog {
 .modal-button-bar {
   width: 100%;
   height: auto;
-  padding: 1 2;
+  padding: 0 2;
   background: $panel;
   border-top: solid $primary;
   align-horizontal: center;
@@ -433,72 +413,41 @@ RichLog {
 /* Individual modal buttons */
 .modal-button {
   width: auto;
-  min-width: 20;
-  height: auto;
+  min-width: 16;
+  height: 3;
   margin: 0 1;
 }
 
 /* Modal title header */
 .modal-title {
   width: 100%;
-  height: auto;
-  padding: 1 2;
+  height: 1;
+  padding: 0 2;
   background: $boost;
   text-align: center;
   text-style: bold;
-  border-bottom: thick $primary;
 }
 
-/* ----- Run Parameters Modal Specific Overrides ----- */
+/* ----- Run Parameters Modal ----- */
 
-.run-params-modal .modal-scroll {
-  max-height: 8;
-  min-height: 3;
-}
-
-.run-params-modal .modal-section-title {
-  padding: 0 2;
-  height: auto;
-}
-
-.run-params-modal .status-message {
-  padding: 1 2 0 2;
-  height: auto;
-}
-
-.run-params-modal .example-message {
-  padding: 1 2 1 2;
-}
-
+/* Scrollable form body; the button bar below it stays pinned and visible. */
 .run-params-modal .modal-content {
-  padding: 1;
-  height: 1fr;
-  max-height: 80vh;
-  width: 100%;
+  height: auto;
+  max-height: 1fr;
+  padding: 0 1;
   overflow-y: auto;
 }
 
-.run-params-modal .modal-button-bar {
-  height: auto;
-  min-height: 5;
-  width: 100%;
-  padding: 1 2;
-  align-horizontal: center;
-  background: $panel;
-}
-
-.run-params-modal .modal-button {
-  width: auto;
-  height: 3;
-  min-width: 20;
-  margin: 0 1;
-}
-
-/* Description text in run parameters modal */
+/* Task name + description header */
 .run-params-description {
-  padding: 1 2;
   width: 100%;
   height: auto;
+  padding: 0 1;
+  color: $text-muted;
+}
+
+.run-params-modal .project-search {
+  margin: 0;
 }
 
 /* ----- Modal Tab Content ----- */
@@ -514,25 +463,7 @@ RichLog {
 }
 
 /* =============================================================================
-   6. OUTPUT COMPONENTS
-   ============================================================================= */
-
-/* Main output widget container */
-.output-widget {
-  width: 100%;
-  height: 100%;
-}
-
-/* Output log display */
-.output-log {
-  width: 100%;
-  height: auto;
-  background: $surface;
-  border: solid $primary;
-}
-
-/* =============================================================================
-   7. TASK MANAGER COMPONENTS
+   6. TASK MANAGER COMPONENTS
    ============================================================================= */
 
 /* Task manager main widget */
@@ -568,7 +499,7 @@ RichLog {
 .clear-history-button {
   width: 100%;
   margin: 0;
-  min-height: 3;
+  height: 3;
   padding: 0 1;
 }
 
@@ -577,14 +508,14 @@ RichLog {
   width: 65%;
   height: 100%;
   background: $surface;
-  padding: 1 1 1 2;
+  padding: 0 1;
 }
 
 /* Task manager output status */
 .task-output-status {
   width: 100%;
-  height: auto;
-  margin: 0 0 1 0;
+  height: 1;
+  margin: 0;
   padding: 0 1;
   color: $text-muted;
 }
@@ -613,25 +544,8 @@ RichLog {
 }
 
 /* =============================================================================
-   8. UTILITY CLASSES
+   7. SAVED CONFIGURATIONS AND SHARED FORM PIECES
    ============================================================================= */
-
-/* Size warning container */
-.size-warning-container {
-  width: 100%;
-  height: 100%;
-  align: center middle;
-}
-
-/* Size warning message */
-.size-warning-message {
-  text-align: center;
-  padding: 2;
-  background: $surface;
-  border: thick $error;
-  width: auto;
-  height: auto;
-}
 
 /* Saved Executions Section */
 .saved-configs-title {
@@ -662,36 +576,61 @@ RichLog {
   padding: 0 1;
 }
 
-/* Enhanced Run Params Modal */
+/* Environment variables editor in the run-with-parameters modal */
 .env-var-textarea {
-  height: 6;
-  max-height: 12;
-  border: solid $accent;
-  margin: 1 0;
+  height: 5;
+  margin: 0;
+}
+
+/* Inline actions under a form field */
+.field-actions {
+  width: 100%;
+  height: auto;
+  align-horizontal: right;
 }
 
 .small-button {
-  min-width: 18;
-  margin: 0 1;
+  min-width: 12;
+  height: 3;
+  margin: 0 0 0 1;
 }
 
 .save-section {
-  border-top: thick $primary;
+  height: auto;
   margin-top: 1;
-  padding: 1 2;
+  padding: 0 1;
   background: $boost;
 }
 
 /* Confirmation Modal */
 .confirmation-modal {
-  align: center middle;
   width: 60;
-  height: 15;
+  max-width: 90%;
+  height: auto;
   background: $surface;
   border: thick $error;
 }
 
+.confirmation-modal .modal-content {
+  height: auto;
+}
+
 .modal-message {
-  padding: 2;
+  width: 100%;
+  padding: 1 2;
   text-align: center;
+}
+
+.permission-body {
+  text-align: left;
+}
+
+.gradlew-permission-modal .modal-content {
+  height: auto;
+}
+
+.field-actions .field-hint {
+  width: 1fr;
+  content-align: left middle;
+  height: 3;
 }

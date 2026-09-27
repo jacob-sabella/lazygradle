@@ -1,6 +1,7 @@
 import logging
 from typing import Optional, Dict
 
+from rich.markup import escape
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Vertical, Horizontal, VerticalScroll
@@ -63,37 +64,28 @@ class RunTaskWithParametersModal(ModalScreen):
 
         yield Vertical(
             Static("Run Task with Parameters", classes="modal-title"),
-            Vertical(
+            VerticalScroll(
                 Static(
-                    f"[bold cyan]{self.selected_task.name}[/bold cyan]",
-                    classes="modal-section-title",
-                ),
-                VerticalScroll(
-                    Static(
-                        f"[dim]{description}[/dim]", classes="run-params-description"
-                    ),
-                    classes="modal-scroll",
+                    f"[bold $text-accent]{escape(self.selected_task.name)}[/]  {escape(description)}",
+                    classes="run-params-description",
                 ),
                 # Parameters section
-                Static("[bold]Parameters[/bold]", classes="modal-section-title"),
+                Static("Parameters", classes="modal-section-title"),
                 self.render_param_input(initial_params),
                 Static(
-                    "[dim]Example: --info --stacktrace or -x test[/dim]",
-                    classes="status-message example-message",
+                    "e.g. --info --stacktrace, -x test, -Pkey=value",
+                    classes="field-hint",
                 ),
                 # Environment variables section
-                Static(
-                    "[bold]Environment Variables[/bold]",
-                    classes="modal-section-title",
-                ),
+                Static("Environment Variables", classes="modal-section-title"),
                 self.render_env_var_input(initial_env_vars),
-                Static(
-                    "[dim]Format: KEY=VALUE (one per line)[/dim]",
-                    classes="status-message format-message",
-                ),
                 Horizontal(
+                    Static(
+                        "KEY=VALUE, one per line. Lines starting with # are ignored.",
+                        classes="field-hint",
+                    ),
                     Button(
-                        "📋 Paste from Clipboard",
+                        "Paste",
                         id="paste_button",
                         variant="default",
                         classes="small-button",
@@ -104,13 +96,13 @@ class RunTaskWithParametersModal(ModalScreen):
                         variant="default",
                         classes="small-button",
                     ),
-                    classes="modal-button-bar",
+                    classes="field-actions",
                 ),
                 # Save configuration section
                 self.render_save_section(initial_save_checked, initial_label),
-                self.render_buttons(),
                 classes="modal-content",
             ),
+            self.render_buttons(),
             classes="run-params-modal",
         )
 
@@ -142,7 +134,7 @@ class RunTaskWithParametersModal(ModalScreen):
         )
         self.label_input = Input(
             value=initial_label,
-            placeholder="Configuration name...",
+            placeholder=f"Name (default: {self.selected_task.name} configuration)",
             classes="project-search",
         )
         # Show label input only if checkbox is checked
@@ -154,13 +146,13 @@ class RunTaskWithParametersModal(ModalScreen):
         """Render the Run, Save, and Cancel buttons."""
         return Horizontal(
             Button(
-                "▶ Run Task", id="run_button", variant="success", classes="modal-button"
+                "▶ Run (Enter)", id="run_button", variant="success", classes="modal-button"
             ),
             Button(
-                "💾 Save Config", id="save_button", variant="primary", classes="modal-button"
+                "Save Only (Ctrl+S)", id="save_button", variant="primary", classes="modal-button"
             ),
             Button(
-                "Cancel", id="cancel_button", variant="default", classes="modal-button"
+                "Cancel (Esc)", id="cancel_button", variant="default", classes="modal-button"
             ),
             classes="modal-button-bar",
         )

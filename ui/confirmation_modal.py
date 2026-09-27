@@ -1,4 +1,3 @@
-import logging
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Vertical, Horizontal
@@ -14,24 +13,34 @@ class ConfirmationModal(ModalScreen):
         Binding("enter", "confirm", "Confirm"),
     ]
 
-    def __init__(self, message: str, **kwargs):
+    def __init__(
+        self,
+        message: str,
+        title: str = "Confirm",
+        confirm_label: str = "Yes",
+        cancel_label: str = "Cancel",
+        **kwargs,
+    ):
         super().__init__(**kwargs)
         self.message = message
+        self.title_text = title
+        self.confirm_label = confirm_label
+        self.cancel_label = cancel_label
 
     def compose(self) -> ComposeResult:
         yield Vertical(
-            Static("Confirmation", classes="modal-title"),
+            Static(self.title_text, classes="modal-title"),
             Vertical(
                 Static(self.message, classes="modal-message"),
                 Horizontal(
                     Button(
-                        "Yes",
+                        f"{self.confirm_label} (Enter)",
                         id="confirm_button",
                         variant="error",
                         classes="modal-button",
                     ),
                     Button(
-                        "No",
+                        f"{self.cancel_label} (Esc)",
                         id="cancel_button",
                         variant="default",
                         classes="modal-button",
